@@ -9,3 +9,5 @@
 *.iml
 local.properties
 .gradle/
+
+*.apk
