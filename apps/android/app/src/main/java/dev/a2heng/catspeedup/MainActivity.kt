@@ -425,7 +425,7 @@ class MainActivity : AppCompatActivity() {
 
         if (!offlineAsr.hasModel()) {
             modelView.text = offlineAsr.modelStatus()
-            showProgress("切分中：没有 ASR 模型，用响度兜底…", startedAt)
+            showProgress("切分中：响度兜底", startedAt)
             Log.w(TAG, "no ASR model, fallback to loudness detection")
             Thread {
                 runCatching {
@@ -463,18 +463,15 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        showProgress("切分中：转写一次（之后只调参）…", startedAt)
+        showProgress("切分中：识别", startedAt, percent = 0)
         Log.i(TAG, "analyze start (ASR-first): $options")
         Thread {
             runCatching {
                 val duration = resolveDuration(uri)
                 cachedDurationMs = duration
                 val transcript = transcribeAll(uri, duration) { doneMs, totalMs ->
-                    val seconds = (System.currentTimeMillis() - startedAt) / 1000
                     val percent = if (totalMs > 0) (doneMs * 100 / totalMs).toInt() else 0
-                    runOnUiThread {
-                        statusView.text = "切分中：识别 $percent%（${seconds}s）"
-                    }
+                    runOnUiThread { updateProgressPercent(percent) }
                 }
                 TranscriptStore.save(
                     this,
@@ -788,24 +785,38 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var progressRunnable: Runnable? = null
+    private var progressText = ""
+    private var progressStartedAt = 0L
+    private var progressPercent: Int? = null
 
-    private fun showProgress(text: String, startedAt: Long) {
+    private fun showProgress(text: String, startedAt: Long, percent: Int? = null) {
         stopProgress()
-        statusView.text = text
+        progressText = text
+        progressStartedAt = startedAt
+        progressPercent = percent
         val runnable = object : Runnable {
             override fun run() {
-                val seconds = (System.currentTimeMillis() - startedAt) / 1000
-                statusView.text = "$text ${seconds}s"
+                val seconds = (System.currentTimeMillis() - progressStartedAt) / 1000
+                statusView.text = buildString {
+                    append(progressText)
+                    progressPercent?.let { append(' ').append(it).append('%') }
+                    append(" · ").append(seconds).append('s')
+                }
                 handler.postDelayed(this, 500)
             }
         }
         progressRunnable = runnable
-        handler.postDelayed(runnable, 500)
+        handler.post(runnable)
+    }
+
+    private fun updateProgressPercent(percent: Int) {
+        progressPercent = percent
     }
 
     private fun stopProgress() {
         progressRunnable?.let { handler.removeCallbacks(it) }
         progressRunnable = null
+        progressPercent = null
     }
 
     private fun updateCurrentSubtitle() {
