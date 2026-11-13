@@ -31,6 +31,7 @@
 - `crates/asr`：`AsrEngine` trait + whisper.cpp 实现（CPU 默认；`gpu-vulkan`/`gpu-cuda` feature 可选）+ 通用 OpenAI 兼容 HTTP 后端（FunASR/Qwen3-ASR/FireRedASR2 都能以本地服务接入）。模型按需下载到 `models/`（gitignore），也支持 `CAT_SPEEDUP_MODEL_DIR`。
 - `crates/cli`：`cat-speedup` 命令（doctor/analyze/render/prepare-asr/transcribe/map-transcript）。桌面和 Android 都复用 core。
 - `apps/desktop`：GPUI 桌面壳；文件选择、分析、FunASR 转写、字幕点击跳帧、出片。当前是帧预览，不是连续播放器。
+- `apps/android`：Kotlin/Compose 播放器壳，Media3 播放 + 导入原时间轴字幕 JSON；设备端切分/加速未做，不接入 Cargo workspace。
 - 桌面和 Android 首屏都要有“视频 + 字幕面板”：字幕跟播高亮、点击跳转，作为快速看内容和编排的主界面；成片渲染放在其后。
 - 桌面 v1 已落地（帧预览 + 字幕跳帧）；连续播放和 Android 端待做。
 - 桌面依赖 `gpui` 0.2.2（crates.io）；Android 用标准 Android Studio 工程，别混入 GPUI。
@@ -68,6 +69,7 @@
 - 检查：`cargo run -p cat-speedup -- doctor`
 - 单测：`cargo test --workspace`；静态检查：`cargo clippy --workspace --all-targets -- -D warnings`。注意 `default-members` 不含 `apps/desktop`，桌面单独 `cargo check -p cat-speedup-desktop`。
 - 桌面：`cargo run -p cat-speedup-desktop`（第一次构建 GPUI 约 3 分钟；先 `source scripts/env.sh`）
+- Android：`cd apps/android && JAVA_HOME=/d/006_Android/jdk-25 ANDROID_HOME=/d/006_Android/sdk ./gradlew :app:assembleDebug`（本机工具链固定 `D:\006_Android`：JDK 25 / Gradle 9.9.1 / AGP 9.5.1 / compileSdk 37；不要在项目里再放一套）。
 - 端到端：`bash scripts/smoke.sh`（生成 6 秒合成视频，跑 analyze/render/prepare-asr/map-transcript）
 - 分析：`cargo run -p cat-speedup -- analyze in.mp4 --speed 4 --margin 0.15 -o plan.json`
 - 出片：`cargo run -p cat-speedup -- render in.mp4 out.mp4 --plan plan.json`

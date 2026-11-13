@@ -13,8 +13,9 @@ Long-video auto editor: keep speech at 1x, speed up non-speech, and show a trans
 - [x] 内置 whisper.cpp ASR（CPU；GPU 通过 feature 编译）
 - [x] 通用 HTTP ASR 后端（OpenAI 兼容接口，默认接 Fun-ASR-Nano）
 - [x] GPUI 桌面壳：打开视频、分析、转写字幕、出片、字幕点击跳帧
+- [x] Android 播放器壳：Media3 视频 + 导入原时间轴字幕 JSON（APK 已构建，见 `apps/android/README.md`）
 - [ ] 连续视频播放（第一版是“帧预览 + 字幕跳帧”，不是完整播放器）
-- [ ] Android APK（下一阶段）
+- [ ] Android 设备端切分/加速
 
 第一版先保证 **PC 能完成“看字幕 -> 编排 -> 出片”的闭环**；Android 与连续播放放到下一版，避免把未验证的端侧链路混进首个开源版本。
 
@@ -91,12 +92,23 @@ cargo build -p cat-speedup --features gpu-vulkan   # 或 gpu-cuda
 
 `--device auto` 在带 GPU 后端的构建里优先 GPU，失败回退 CPU；CPU-only 构建会直接走 CPU。
 
+## Android
+
+```bash
+cd apps/android
+JAVA_HOME=/d/006_Android/jdk-25 ANDROID_HOME=/d/006_Android/sdk ./gradlew :app:assembleDebug
+# app/build/outputs/apk/debug/app-debug.apk
+```
+
+第一版是播放器壳：选择视频、导入 PC 生成的 `transcript.json`、字幕跟播并点击跳转。设备端切分/加速还没接。
+
 ## 目录
 
 - `crates/core`：检测、片段计划、ffmpeg 命令、ASR 映射
 - `crates/asr`：`AsrEngine` trait、whisper.cpp、OpenAI 兼容 HTTP 后端
 - `crates/cli`：`cat-speedup` 命令行
 - `apps/desktop`：GPUI 桌面端
+- `apps/android`：Android 播放器壳（Media3 + 字幕 JSON）
 - `scripts/smoke.sh`：合成视频端到端验证
 
 ## 设计约定

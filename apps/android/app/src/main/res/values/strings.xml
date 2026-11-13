@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">cat-and-speedup</string>
+    <string name="status_hint">选择视频，或先导入 PC 生成的 transcript.json</string>
+    <string name="open_video">选择视频</string>
+    <string name="open_subtitles">导入字幕 JSON</string>
+</resources>
