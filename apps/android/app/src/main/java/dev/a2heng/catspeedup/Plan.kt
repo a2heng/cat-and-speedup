@@ -52,12 +52,23 @@ data class PlaybackPlan(
     }
 }
 
+object PlanDefaults {
+    const val VOICE_SPEED = 1f
+    const val SILENCE_SPEED = 10f
+    const val MARGIN_MS = 150L
+    const val MIN_SPEEDUP_SILENCE_MS = 5_000L
+    const val FALLBACK_NOISE_DB = -30f
+    const val FALLBACK_MIN_SILENCE_MS = 500L
+}
+
 data class PlanOptions(
-    val voiceSpeed: Float = 1f,
-    val silenceSpeed: Float = 4f,
-    val marginMs: Long = 150,
-    val noiseDb: Float = -30f,
-    val minSilenceMs: Long = 500,
+    val voiceSpeed: Float = PlanDefaults.VOICE_SPEED,
+    /** Non-speech playback speed. ASR gives clean speech boundaries, so this can be aggressive. */
+    val silenceSpeed: Float = PlanDefaults.SILENCE_SPEED,
+    /** Padding kept around every speech range, in ms. */
+    val marginMs: Long = PlanDefaults.MARGIN_MS,
+    /** Only gaps at least this long are accelerated; shorter gaps stay 1x. */
+    val minSpeedupSilenceMs: Long = PlanDefaults.MIN_SPEEDUP_SILENCE_MS,
 ) {
     init {
         require(voiceSpeed > 0f) { "人声倍速必须大于 0" }
@@ -93,29 +104,43 @@ object SilenceDetector {
         val spans = ArrayList<SilenceSpan>()
         var rate = 16_000
         var windowSamples = 0
-        var sumSquares = 0.0
-        var windowStartMs = 0L
+        var samplesInWindow = 0
+        var sumSquares = 0f
+        var windowsDone = 0L
         var silentRunStartMs = -1L
         var totalSamples = 0L
 
         AudioDecoder.decodeMono(context, uri) { samples, sampleRate ->
-            rate = sampleRate
-            windowSamples = (sampleRate * WINDOW_MS / 1000).coerceAtLeast(1)
-            for (sample in samples) {
-                sumSquares += sample.toDouble() * sample.toDouble()
-                totalSamples++
-                if (totalSamples % windowSamples != 0L) continue
+            if (windowSamples == 0 || sampleRate != rate) {
+                rate = sampleRate
+                windowSamples = (sampleRate * WINDOW_MS / 1000).coerceAtLeast(1)
+            }
+            totalSamples += samples.size
 
+            var index = 0
+            while (index < samples.size) {
+                val take = minOf(windowSamples - samplesInWindow, samples.size - index)
+                var sum = sumSquares
+                for (i in index until index + take) {
+                    val value = samples[i]
+                    sum += value * value
+                }
+                sumSquares = sum
+                samplesInWindow += take
+                index += take
+                if (samplesInWindow < windowSamples) break
+
+                val windowStartMs = windowsDone * windowSamples * 1000L / rate
+                windowsDone++
                 val isSilent = rmsDb(sumSquares / windowSamples) < noiseDb
-                val windowEndMs = totalSamples * 1000L / sampleRate
                 if (isSilent) {
                     if (silentRunStartMs < 0) silentRunStartMs = windowStartMs
                 } else if (silentRunStartMs >= 0) {
                     spans += SilenceSpan(silentRunStartMs, windowStartMs)
                     silentRunStartMs = -1
                 }
-                windowStartMs = windowEndMs
-                sumSquares = 0.0
+                samplesInWindow = 0
+                sumSquares = 0f
             }
         }
 
@@ -132,6 +157,57 @@ object SilenceDetector {
         return Result(durationMs = durationMs, silence = longEnough)
     }
 
+    /**
+     * Build the plan from ASR speech ranges instead of loudness detection.
+     * Speech stays 1x; only gaps >= [PlanOptions.minSpeedupSilenceMs] are sped up,
+     * so short sentence pauses never cause a speed change.
+     */
+    fun buildPlanFromSpeech(
+        durationMs: Long,
+        speechRanges: List<LongRange>,
+        options: PlanOptions,
+    ): PlaybackPlan {
+        require(durationMs > 0) { "视频时长为 0" }
+        val ranges = mergeRanges(
+            speechRanges.mapNotNull { range ->
+                val start = (range.first - options.marginMs).coerceIn(0, durationMs)
+                val end = (range.last + options.marginMs).coerceIn(0, durationMs)
+                if (end > start) Range(start, end) else null
+            },
+        )
+
+        val segments = ArrayList<Segment>(ranges.size * 2 + 1)
+        var cursor = 0L
+        for (range in ranges) {
+            val gap = range.startMs - cursor
+            if (gap >= options.minSpeedupSilenceMs) {
+                addSegment(segments, cursor, range.startMs, options.silenceSpeed, false)
+                cursor = range.startMs
+            }
+            // Short gap: keep it at 1x by starting the voice segment at the cursor.
+            val start = if (range.startMs > cursor) cursor else range.startMs
+            addSegment(segments, start, range.endMs, options.voiceSpeed, true)
+            cursor = range.endMs
+        }
+
+        if (cursor < durationMs) {
+            val tailMs = durationMs - cursor
+            if (tailMs >= options.minSpeedupSilenceMs) {
+                addSegment(segments, cursor, durationMs, options.silenceSpeed, false)
+            } else {
+                addSegment(segments, cursor, durationMs, options.voiceSpeed, true)
+            }
+        }
+
+        val plan = PlaybackPlan(durationMs, segments)
+        Log.i(
+            TAG,
+            "plan(asr): speech=${ranges.size} ranges, segments=${segments.size}, " +
+                "output=${plan.outputDurationMs()}ms",
+        )
+        return plan
+    }
+
     fun buildPlan(
         durationMs: Long,
         silence: List<SilenceSpan>,
@@ -139,11 +215,13 @@ object SilenceDetector {
     ): PlaybackPlan {
         require(durationMs > 0) { "视频时长为 0" }
         val silences = mergeRanges(
-            silence.mapNotNull { span ->
-                val start = span.startMs.coerceIn(0, durationMs)
-                val end = span.endMs.coerceIn(0, durationMs)
-                if (end > start) Range(start, end) else null
-            },
+            silence
+                .filter { it.durationMs >= options.minSpeedupSilenceMs }
+                .mapNotNull { span ->
+                    val start = span.startMs.coerceIn(0, durationMs)
+                    val end = span.endMs.coerceIn(0, durationMs)
+                    if (end > start) Range(start, end) else null
+                },
         )
         val voice = mergeRanges(
             complement(silences, durationMs).map { range ->
@@ -226,8 +304,8 @@ object SilenceDetector {
         segments += Segment(startMs, endMs, speed, isVoice)
     }
 
-    private fun rmsDb(meanSquare: Double): Float {
-        if (meanSquare <= 0.0) return -120f
-        return (10.0 * log10(meanSquare)).toFloat()
+    private fun rmsDb(meanSquare: Float): Float {
+        if (meanSquare <= 0f) return -120f
+        return (10.0 * log10(meanSquare.toDouble())).toFloat()
     }
 }

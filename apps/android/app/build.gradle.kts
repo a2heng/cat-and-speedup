@@ -10,8 +10,8 @@ android {
         applicationId = "dev.a2heng.catspeedup"
         minSdk = 26
         targetSdk = 37
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
 
         ndk {
             // sherpa-onnx ships prebuilt JNI libs; the model runs on 64-bit ARM only.
@@ -32,6 +32,16 @@ android {
 
     buildFeatures {
         buildConfig = false
+    }
+
+    buildTypes {
+        release {
+            // Personal tool: sign releases with the local debug key so the
+            // release build (non-debuggable, optimized) can be installed directly.
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
     }
 
     androidResources {

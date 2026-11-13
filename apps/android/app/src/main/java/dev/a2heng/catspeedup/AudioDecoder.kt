@@ -5,10 +5,26 @@ import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
 
 object AudioDecoder {
+    /** Media duration in ms, independent of the player being ready. */
+    fun durationMs(context: Context, uri: Uri): Long {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(context, uri)
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull() ?: 0L
+        } catch (error: Throwable) {
+            Log.w(TAG, "duration probe failed", error)
+            0L
+        } finally {
+            runCatching { retriever.release() }
+        }
+    }
+
     /**
      * Decode the first audio track and stream mono float chunks to [onBuffer].
      * Chunks are at the track's native sample rate; nothing is kept in memory.
@@ -20,6 +36,8 @@ object AudioDecoder {
     ) {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
+        val startedAt = System.currentTimeMillis()
+        var decodedSamples = 0L
         try {
             context.contentResolver.openFileDescriptor(uri, "r")!!.use { descriptor ->
                 extractor.setDataSource(descriptor.fileDescriptor)
@@ -57,7 +75,7 @@ object AudioDecoder {
 
             while (!outputDone) {
                 if (!inputDone) {
-                    val inputIndex = codec.dequeueInputBuffer(10_000)
+                    val inputIndex = codec.dequeueInputBuffer(0)
                     if (inputIndex >= 0) {
                         val buffer = codec.getInputBuffer(inputIndex)!!
                         val size = extractor.readSampleData(buffer, 0)
@@ -77,8 +95,8 @@ object AudioDecoder {
                     }
                 }
 
-                when (val outputIndex = codec.dequeueOutputBuffer(info, 10_000)) {
-                    MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
+                when (val outputIndex = codec.dequeueOutputBuffer(info, 0)) {
+                    MediaCodec.INFO_TRY_AGAIN_LATER -> Thread.yield()
                     MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                         val outputFormat = codec.outputFormat
                         sampleRate = outputFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
@@ -103,6 +121,7 @@ object AudioDecoder {
                                 }, channels)
                             }
                             onBuffer(mono, sampleRate)
+                            decodedSamples += mono.size
                         }
                         codec.releaseOutputBuffer(outputIndex, false)
                         if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
@@ -111,6 +130,13 @@ object AudioDecoder {
                     }
                 }
             }
+            val elapsed = System.currentTimeMillis() - startedAt
+            val audioMs = if (sampleRate > 0) decodedSamples * 1000 / sampleRate else 0
+            Log.i(
+                TAG,
+                "decode: ${audioMs / 1000}s audio in ${elapsed}ms " +
+                    "(${if (elapsed > 0) audioMs / elapsed else 0}x realtime, $sampleRate Hz)",
+            )
         } finally {
             codec?.let {
                 runCatching { it.stop() }

@@ -25,4 +25,10 @@
     <color name="time_pill">#232830</color>
     <color name="time_pill_active">#B4C8FF</color>
     <color name="time_pill_active_text">#00296B</color>
+
+    <color name="timeline_track">#262A31</color>
+    <color name="timeline_voice">#B4C8FF</color>
+    <color name="timeline_silence">#6FD6C8</color>
+    <color name="timeline_thumb">#E3E6EB</color>
+    <color name="timeline_thumb_ring">#101318</color>
 </resources>

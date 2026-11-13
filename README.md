@@ -12,7 +12,7 @@ Long-video auto editor: keep speech at 1x, speed up non-speech, and show a trans
 - [x] ASR 预缩短音频 + 原时间轴映射
 - [x] **内置 FunASR**：sherpa-onnx + Fun-ASR-Nano-2512 int8，离线
 - [x] GPUI 桌面壳：打开视频、分析、转写字幕、出片、字幕点击跳帧
-- [x] Android：Media3 播放 + 设备端切分 / 跟随加速 / 本地 FunASR / 导出视频 / 导出 SRT
+- [x] Android：Media3 播放 + ASR-first 切分 / 跟随加速 / 本地 X-ASR / 滑块调参 / 导出视频 / 导出 SRT
 - [ ] 桌面连续播放（当前是帧预览 + 字幕跳帧）
 - [ ] Android 转写进度可视化（当前只有状态栏文字 + logcat）
 
@@ -109,7 +109,8 @@ source /d/AndroidDevToolchain/env.sh   # 本机工具链，见全局 AGENTS.md
 ./gradlew :app:assembleDebug   # app/build/outputs/apk/debug/app-debug.apk
 ```
 
-界面流程：加入视频 → 切分（响度阈值，可调倍速/阈值/最短静音/余量）→ 转写（设备端 X-ASR Zipformer）→ 导出视频 / 导出字幕。
+界面流程：加入视频 → 转写并切分（首次自动转写并缓存，用 ASR 时间戳切分）→ 调参后“重新切分”（只重排，不重新转写）→ 导出视频 / 导出字幕。
+默认：人声 1x、停顿 10x、停顿 ≥5 秒才加速、人声前后留白 150ms；参数持久化，“恢复默认”有确认提示。
 切分后播放默认跟随片段加速（人声 1x，静音 Nx），底部字幕面板按原时间轴显示，点一条跳到原片位置。
 
 导出视频用 Media3 Transformer 逐段重编码再拼接，参数沿用源分辨率/帧率，成片在 `Movies/CatSpeedup/`；

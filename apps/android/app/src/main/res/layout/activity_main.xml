@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?attr/colorSurface"
@@ -41,7 +42,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:ellipsize="end"
-        android:maxLines="2"
+        android:maxLines="1"
         android:paddingStart="16dp"
         android:paddingTop="2dp"
         android:paddingEnd="16dp"
@@ -75,16 +76,6 @@
             android:layout_marginEnd="2dp"
             android:layout_weight="1"
             android:text="@string/analyze" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/transcribe_local"
-            style="@style/Widget.CatSpeedup.ActionButton"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
-            android:layout_weight="1"
-            android:text="@string/transcribe_local" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/export_video"
@@ -153,87 +144,123 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="6dp">
 
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.CatSpeedup.Field"
+            <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
                 android:layout_weight="1"
-                android:hint="@string/hint_speed">
+                android:text="@string/speed_desc"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp" />
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/speed_input"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="numberDecimal"
-                    android:maxLines="1"
-                    android:text="4"
-                    android:textSize="13sp" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.CatSpeedup.Field"
-                android:layout_width="0dp"
+            <TextView
+                android:id="@+id/speed_value_label"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:hint="@string/hint_noise">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/noise_input"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="numberSigned"
-                    android:maxLines="1"
-                    android:text="-30"
-                    android:textSize="13sp" />
-            </com.google.android.material.textfield.TextInputLayout>
+                android:fontFamily="sans-serif-medium"
+                android:text="10×"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="12sp" />
         </LinearLayout>
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/silence_speed_slider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stepSize="1"
+            android:value="10"
+            android:valueFrom="2"
+            android:valueTo="20"
+            app:thumbHeight="14dp"
+            app:thumbWidth="4dp"
+            app:tickVisible="false"
+            app:trackStopIndicatorSize="0dp" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingTop="4dp">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.CatSpeedup.Field"
+            <TextView
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
                 android:layout_weight="1"
-                android:hint="@string/hint_min_silence">
+                android:text="@string/gap_desc"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp" />
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/min_silence_input"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="number"
-                    android:maxLines="1"
-                    android:text="500"
-                    android:textSize="13sp" />
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.CatSpeedup.Field"
-                android:layout_width="0dp"
+            <TextView
+                android:id="@+id/gap_value_label"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:hint="@string/hint_margin">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/margin_input"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="number"
-                    android:maxLines="1"
-                    android:text="150"
-                    android:textSize="13sp" />
-            </com.google.android.material.textfield.TextInputLayout>
+                android:fontFamily="sans-serif-medium"
+                android:text="5 秒"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="12sp" />
         </LinearLayout>
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/min_gap_slider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stepSize="1"
+            android:value="5"
+            android:valueFrom="1"
+            android:valueTo="30"
+            app:thumbHeight="14dp"
+            app:thumbWidth="4dp"
+            app:tickVisible="false"
+            app:trackStopIndicatorSize="0dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/margin_desc"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/margin_value_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="150 毫秒"
+                android:textColor="?attr/colorPrimary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/margin_slider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:stepSize="25"
+            android:value="150"
+            android:valueFrom="0"
+            android:valueTo="400"
+            app:thumbHeight="14dp"
+            app:thumbWidth="4dp"
+            app:tickVisible="false"
+            app:trackStopIndicatorSize="0dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/reset_defaults"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:text="@string/reset_defaults"
+            android:textSize="12sp" />
     </LinearLayout>
 
     <LinearLayout
@@ -266,6 +293,21 @@
                 android:textColor="?attr/colorOnPrimaryContainer"
                 android:textSize="11sp" />
         </com.google.android.material.card.MaterialCardView>
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/play_toggle"
+            style="@style/Widget.CatSpeedup.ActionButton"
+            android:layout_width="58dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:minHeight="32dp"
+            android:text="@string/pause"
+            android:textSize="10sp" />
     </LinearLayout>
 
     <com.google.android.material.card.MaterialCardView
@@ -297,38 +339,22 @@
         android:paddingTop="2dp"
         android:paddingEnd="14dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/play_toggle"
-            style="@style/Widget.CatSpeedup.ActionButton"
-            android:layout_width="58dp"
-            android:layout_height="32dp"
-            android:minHeight="32dp"
-            android:text="@string/pause"
-            android:textSize="10sp" />
-
         <TextView
             android:id="@+id/position_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
             android:fontFamily="monospace"
             android:text="00:00"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="10sp" />
 
-        <SeekBar
-            android:id="@+id/seek_bar"
+        <dev.a2heng.catspeedup.TimelineBar
+            android:id="@+id/timeline_bar"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:layout_marginEnd="6dp"
-            android:layout_weight="1"
-            android:max="1000"
-            android:minHeight="20dp"
-            android:paddingStart="0dp"
-            android:paddingTop="0dp"
-            android:paddingEnd="0dp"
-            android:paddingBottom="0dp" />
+            android:layout_height="30dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1" />
 
         <TextView
             android:id="@+id/duration_text"
@@ -356,15 +382,20 @@
         <TextView
             android:id="@+id/current_subtitle"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="44dp"
+            android:layout_height="60dp"
+            android:ellipsize="end"
+            android:maxLines="2"
             android:paddingStart="14dp"
-            android:paddingTop="10dp"
+            android:paddingTop="8dp"
             android:paddingEnd="14dp"
-            android:paddingBottom="10dp"
+            android:paddingBottom="8dp"
             android:textColor="?attr/colorOnSecondaryContainer"
             android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            app:autoSizeMaxTextSize="16sp"
+            app:autoSizeMinTextSize="10sp"
+            app:autoSizeStepGranularity="1sp"
+            app:autoSizeTextType="uniform" />
     </com.google.android.material.card.MaterialCardView>
 
     <LinearLayout

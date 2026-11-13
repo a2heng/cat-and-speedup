@@ -1,28 +1,33 @@
 <resources>
     <string name="app_name">cat-speedup</string>
-    <string name="status_hint">加入视频 → 切分 → 转写 → 导出</string>
+    <string name="status_hint">加入视频 → 切分（只转写一次）→ 调参 → 导出</string>
     <string name="open_video">加入视频</string>
-    <string name="analyze">切分</string>
-    <string name="transcribe_local">转写</string>
+    <string name="analyze">转写并切分</string>
+    <string name="reanalyze">重新切分</string>
     <string name="export_video">导出视频</string>
     <string name="export_subtitles">导出字幕</string>
     <string name="adjust">调整</string>
-    <string name="label_speed">静音倍速</string>
-    <string name="label_noise">判定阈值</string>
-    <string name="label_min_silence">最短静音</string>
-    <string name="label_margin">边界余量</string>
-    <string name="hint_speed">静音倍速 (x)</string>
-    <string name="hint_noise">判定阈值 (dB)</string>
-    <string name="hint_min_silence">最短静音 (ms)</string>
-    <string name="hint_margin">边界余量 (ms)</string>
-    <string name="speed_state_idle">1x · 原速</string>
+
+    <string name="speed_desc">跳过静音的速度</string>
+    <string name="gap_desc">多长的停顿才加速</string>
+    <string name="margin_desc">人声前后留白</string>
+    <string name="speed_value_format">%1$d×</string>
+    <string name="gap_value_format">%1$d 秒</string>
+    <string name="margin_value_format">%1$d 毫秒</string>
+    <string name="reset_defaults">恢复默认参数</string>
+    <string name="reset_title">恢复默认参数？</string>
+    <string name="reset_message">跳过静音的速度 10×、停顿 ≥5 秒才加速、人声前后留白 150 毫秒。\n当前调整会丢失；恢复后自动重排计划，不会重新转写。</string>
+    <string name="reset_positive">恢复默认</string>
+    <string name="cancel">取消</string>
+
+    <string name="speed_state_idle">1× · 原速</string>
+    <string name="follow_toggle_desc">点此切换跟随加速</string>
+    <string name="play">播放</string>
+    <string name="pause">暂停</string>
+
     <string name="subtitle_header">字幕</string>
     <string name="subtitle_hint">点一条跳转原片</string>
     <string name="subtitle_empty">还没有字幕，先点“转写”</string>
     <string name="subtitle_count">%1$d 条</string>
-    <string name="follow_on">跟随加速：开</string>
-    <string name="follow_off">跟随加速：关</string>
-    <string name="follow_toggle_desc">点此切换跟随加速</string>
-    <string name="play">播放</string>
-    <string name="pause">暂停</string>
+    <string name="timeline_desc">进度条：蓝色人声、绿色加速，拖动跳转</string>
 </resources>
