@@ -1,26 +1,31 @@
 package dev.a2heng.catspeedup
 
 import android.content.Intent
-import android.graphics.Color
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.BaseAdapter
-import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.ListView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
+import android.widget.SeekBar
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
     private lateinit var player: ExoPlayer
@@ -29,7 +34,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var modelView: TextView
     private lateinit var speedStateView: TextView
     private lateinit var currentSubtitleView: TextView
-    private lateinit var listView: ListView
+    private lateinit var currentSubtitleCard: View
+    private lateinit var playToggle: MaterialButton
+    private lateinit var seekBar: SeekBar
+    private lateinit var positionText: TextView
+    private lateinit var durationText: TextView
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var subtitleCountView: TextView
+    private lateinit var subtitleEmptyView: TextView
+    private lateinit var paramsSummaryView: TextView
+    private lateinit var settingsPanel: View
     private lateinit var adapter: SubtitleAdapter
     private lateinit var offlineAsr: OfflineAsr
     private lateinit var videoExporter: VideoExporter
@@ -37,13 +51,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var noiseInput: EditText
     private lateinit var minSilenceInput: EditText
     private lateinit var marginInput: EditText
-    private lateinit var followPlanView: CheckBox
 
     private var subtitles: List<Subtitle> = emptyList()
     private var currentIndex = -1
     private var videoUri: Uri? = null
     private var plan: PlaybackPlan? = null
     private var planOptions = PlanOptions()
+    private var followPlan = true
+    private var settingsExpanded = false
+    private var userSeeking = false
     private var transcribing = false
     private var analyzing = false
     private var exporting = false
@@ -53,6 +69,7 @@ class MainActivity : AppCompatActivity() {
         override fun run() {
             updateCurrentSubtitle()
             applyPlaybackSpeed()
+            updateProgressUi()
             handler.postDelayed(this, 100)
         }
     }
@@ -82,6 +99,7 @@ class MainActivity : AppCompatActivity() {
         currentIndex = -1
         adapter.setItems(subtitles)
         currentSubtitleView.text = ""
+        currentSubtitleCard.visibility = View.GONE
         speedStateView.text = getString(R.string.speed_state_idle)
         statusView.text = "已加入视频，点“切分”开始"
     }
@@ -94,13 +112,21 @@ class MainActivity : AppCompatActivity() {
         modelView = findViewById(R.id.model)
         speedStateView = findViewById(R.id.speed_state)
         currentSubtitleView = findViewById(R.id.current_subtitle)
-        listView = findViewById(R.id.subtitle_list)
+        currentSubtitleCard = findViewById(R.id.current_subtitle_card)
+        playToggle = findViewById(R.id.play_toggle)
+        seekBar = findViewById(R.id.seek_bar)
+        positionText = findViewById(R.id.position_text)
+        durationText = findViewById(R.id.duration_text)
+        recyclerView = findViewById(R.id.subtitle_list)
+        subtitleCountView = findViewById(R.id.subtitle_count)
+        subtitleEmptyView = findViewById(R.id.subtitle_empty)
+        paramsSummaryView = findViewById(R.id.params_summary)
+        settingsPanel = findViewById(R.id.settings_panel)
         playerView = findViewById(R.id.player_view)
         speedInput = findViewById(R.id.speed_input)
         noiseInput = findViewById(R.id.noise_input)
         minSilenceInput = findViewById(R.id.min_silence_input)
         marginInput = findViewById(R.id.margin_input)
-        followPlanView = findViewById(R.id.follow_plan)
 
         player = ExoPlayer.Builder(this).build()
         playerView.player = player
@@ -108,35 +134,108 @@ class MainActivity : AppCompatActivity() {
         videoExporter = VideoExporter(this)
 
         adapter = SubtitleAdapter()
-        listView.adapter = adapter
-        listView.setOnItemClickListener { _, _, position, _ ->
-            val subtitle = subtitles.getOrNull(position) ?: return@setOnItemClickListener
-            Log.i(TAG, "seek via subtitle[$position] -> ${subtitle.startMs}ms")
-            player.seekTo(subtitle.startMs)
-            player.playWhenReady = true
-            applyPlaybackSpeed(force = true)
-        }
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = adapter
 
-        findViewById<Button>(R.id.open_video).setOnClickListener {
+        findViewById<View>(R.id.open_video).setOnClickListener {
             openVideo.launch(arrayOf("video/*"))
         }
-        findViewById<Button>(R.id.analyze).setOnClickListener {
+        findViewById<View>(R.id.analyze).setOnClickListener {
             analyze(null)
         }
-        findViewById<Button>(R.id.transcribe_local).setOnClickListener {
+        findViewById<View>(R.id.transcribe_local).setOnClickListener {
             transcribe()
         }
-        findViewById<Button>(R.id.export_video).setOnClickListener {
+        findViewById<View>(R.id.export_video).setOnClickListener {
             exportVideo()
         }
-        findViewById<Button>(R.id.export_subtitles).setOnClickListener {
+        findViewById<View>(R.id.export_subtitles).setOnClickListener {
             exportSubtitles()
         }
-        followPlanView.setOnCheckedChangeListener { _, _ -> applyPlaybackSpeed(force = true) }
+        findViewById<View>(R.id.settings_toggle).setOnClickListener { toggleSettings() }
+        paramsSummaryView.setOnClickListener { toggleSettings() }
+        speedStateView.setOnClickListener {
+            followPlan = !followPlan
+            Log.i(TAG, "follow plan: $followPlan")
+            applyPlaybackSpeed(force = true)
+        }
+        speedStateView.contentDescription = getString(R.string.follow_toggle_desc)
 
+        playerView.setOnClickListener { togglePlayback() }
+        playToggle.setOnClickListener { togglePlayback() }
+        seekBar.setOnSeekBarChangeListener(
+            object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar, progress: Int, fromUser: Boolean) {
+                    if (!fromUser) return
+                    val duration = player.duration
+                    if (duration > 0) player.seekTo(duration * progress / 1000)
+                }
+
+                override fun onStartTrackingTouch(bar: SeekBar) {
+                    userSeeking = true
+                }
+
+                override fun onStopTrackingTouch(bar: SeekBar) {
+                    userSeeking = false
+                }
+            },
+        )
+        player.addListener(
+            object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) = updateProgressUi()
+                override fun onIsPlayingChanged(isPlaying: Boolean) = updateProgressUi()
+            },
+        )
+
+        updateParamSummary()
+        updateEmptyState()
         handler.post(tick)
         modelView.text = offlineAsr.modelStatus()
         handleViewIntent(intent)
+    }
+
+    private fun toggleSettings() {
+        settingsExpanded = !settingsExpanded
+        settingsPanel.visibility = if (settingsExpanded) View.VISIBLE else View.GONE
+        updateParamSummary()
+    }
+
+    private fun updateParamSummary() {
+        val speed = speedInput.text?.toString()?.takeIf { it.isNotBlank() } ?: "4"
+        val noise = noiseInput.text?.toString()?.takeIf { it.isNotBlank() } ?: "-30"
+        val minSilence = minSilenceInput.text?.toString()?.takeIf { it.isNotBlank() } ?: "500"
+        val margin = marginInput.text?.toString()?.takeIf { it.isNotBlank() } ?: "150"
+        paramsSummaryView.text = "${speed}x · ${noise}dB · ${minSilence}ms · 余量 ${margin}ms"
+    }
+
+    private fun updateEmptyState() {
+        val empty = subtitles.isEmpty()
+        subtitleEmptyView.visibility = if (empty) View.VISIBLE else View.GONE
+        subtitleCountView.text = if (empty) "" else getString(R.string.subtitle_count, subtitles.size)
+    }
+
+    /** adb-only: render the current layout to a PNG even when the screen is off. */
+    private fun dumpUiToFile() {
+        val root = findViewById<View>(android.R.id.content)
+        if (root.width <= 0 || root.height <= 0) {
+            Log.w(TAG, "ui dump skipped: ${root.width}x${root.height}")
+            return
+        }
+        val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(root.width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(root.height, View.MeasureSpec.EXACTLY),
+        )
+        root.layout(0, 0, root.width, root.height)
+        root.draw(Canvas(bitmap))
+        val file = File(getExternalFilesDir(null), "ui-dump.png")
+        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        Log.i(TAG, "ui dump: ${file.absolutePath} ${root.width}x${root.height}")
+        Log.i(
+            TAG,
+            "current subtitle card: ${currentSubtitleCard.visibility} " +
+                "h=${currentSubtitleCard.height} text=${currentSubtitleView.text}",
+        )
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -147,6 +246,9 @@ class MainActivity : AppCompatActivity() {
     private fun handleViewIntent(intent: Intent?) {
         if (intent?.action != Intent.ACTION_VIEW) return
         intent.data?.let { openVideoUri(it) }
+        if (intent.getBooleanExtra(EXTRA_DUMP_UI, false)) {
+            handler.postDelayed({ dumpUiToFile() }, 12_000)
+        }
         if (intent.getBooleanExtra(EXTRA_AUTO_ANALYZE, false)) {
             val autoTranscribe = intent.getBooleanExtra(EXTRA_AUTO_TRANSCRIBE, false)
             val autoExport = intent.getBooleanExtra(EXTRA_AUTO_EXPORT, false)
@@ -241,7 +343,7 @@ class MainActivity : AppCompatActivity() {
                     stopProgress()
                     plan = result
                     planOptions = options
-                    followPlanView.isChecked = true
+                    followPlan = true
                     applyPlaybackSpeed(force = true)
                     showPlanSummary(result)
                     next?.invoke()
@@ -264,6 +366,7 @@ class MainActivity : AppCompatActivity() {
         const val EXTRA_AUTO_ANALYZE = "auto_analyze"
         const val EXTRA_AUTO_TRANSCRIBE = "auto_transcribe"
         const val EXTRA_AUTO_EXPORT = "auto_export"
+        const val EXTRA_DUMP_UI = "dump_ui"
     }
 
     private fun showPlanSummary(result: PlaybackPlan) {
@@ -451,11 +554,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyPlaybackSpeed(force: Boolean = false) {
-        val segment = if (followPlanView.isChecked) {
-            plan?.segmentAt(player.currentPosition)
-        } else {
-            null
-        }
+        val segment = if (followPlan) plan?.segmentAt(player.currentPosition) else null
         val desired = segment?.speed ?: 1f
         if (force || player.playbackParameters.speed != desired) {
             Log.d(
@@ -468,10 +567,10 @@ class MainActivity : AppCompatActivity() {
 
         val label = when {
             plan == null -> getString(R.string.speed_state_idle)
-            !followPlanView.isChecked -> "播放：1x（跟随加速已关闭）"
-            segment == null -> "播放：1x"
-            segment.isVoice -> "播放：${trimSpeed(segment.speed)}x（人声段）"
-            else -> "播放：${trimSpeed(segment.speed)}x（跳过静音）"
+            !followPlan -> "1x · 跟随已关"
+            segment == null -> "1x"
+            segment.isVoice -> "${trimSpeed(segment.speed)}x · 人声"
+            else -> "${trimSpeed(segment.speed)}x · 跳过静音"
         }
         if (speedStateView.text != label) speedStateView.text = label
     }
@@ -503,14 +602,39 @@ class MainActivity : AppCompatActivity() {
         if (index == currentIndex) return
 
         currentIndex = index
+        currentSubtitleCard.visibility = if (index >= 0) View.VISIBLE else View.GONE
         currentSubtitleView.text = subtitles.getOrNull(index)?.text.orEmpty()
         adapter.setActiveIndex(index)
         if (index >= 0) {
-            listView.smoothScrollToPosition(index)
+            recyclerView.smoothScrollToPosition(index)
         }
     }
 
-    private inner class SubtitleAdapter : BaseAdapter() {
+    private fun togglePlayback() {
+        if (player.isPlaying) {
+            player.pause()
+        } else {
+            if (player.playbackState == Player.STATE_ENDED) player.seekTo(0)
+            player.play()
+        }
+        updateProgressUi()
+    }
+
+    private fun updateProgressUi() {
+        val label = getString(if (player.isPlaying) R.string.pause else R.string.play)
+        if (playToggle.text.toString() != label) playToggle.text = label
+
+        val duration = player.duration.takeIf { it > 0 } ?: 0L
+        durationText.text = formatDuration(duration)
+        positionText.text = formatDuration(player.currentPosition)
+        seekBar.isEnabled = duration > 0
+        if (!userSeeking && duration > 0) {
+            val position = player.currentPosition.coerceIn(0, duration)
+            seekBar.progress = (position * 1000 / duration).toInt()
+        }
+    }
+
+    private inner class SubtitleAdapter : RecyclerView.Adapter<SubtitleHolder>() {
         private var items: List<Subtitle> = emptyList()
         private var activeIndex = -1
 
@@ -518,56 +642,67 @@ class MainActivity : AppCompatActivity() {
             items = value
             activeIndex = -1
             notifyDataSetChanged()
+            updateEmptyState()
         }
 
         fun setActiveIndex(value: Int) {
             if (activeIndex == value) return
+            val previous = activeIndex
             activeIndex = value
-            notifyDataSetChanged()
+            if (previous >= 0) notifyItemChanged(previous)
+            if (value >= 0) notifyItemChanged(value)
         }
 
-        override fun getCount(): Int = items.size
+        override fun getItemCount(): Int = items.size
 
-        override fun getItem(position: Int): Subtitle = items[position]
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SubtitleHolder =
+            SubtitleHolder(
+                LayoutInflater.from(parent.context)
+                    .inflate(R.layout.item_subtitle, parent, false),
+            )
 
-        override fun getItemId(position: Int): Long = position.toLong()
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-            val row = (convertView as? SubtitleRow) ?: SubtitleRow(parent.context)
-            row.bind(items[position], position == activeIndex)
-            return row
+        override fun onBindViewHolder(holder: SubtitleHolder, position: Int) {
+            val subtitle = items[position]
+            holder.bind(subtitle, position == activeIndex) {
+                Log.i(TAG, "seek via subtitle[$position] -> ${subtitle.startMs}ms")
+                player.seekTo(subtitle.startMs)
+                player.playWhenReady = true
+                applyPlaybackSpeed(force = true)
+            }
         }
     }
 
-    private class SubtitleRow(context: android.content.Context) : LinearLayout(context) {
-        private val timeView = TextView(context).apply {
-            textSize = 11f
-            setTextColor(Color.parseColor("#888888"))
-        }
-        private val textView = TextView(context).apply {
-            textSize = 15f
-            setTextColor(Color.parseColor("#212121"))
-        }
+    private class SubtitleHolder(view: View) : RecyclerView.ViewHolder(view) {
+        private val card = view as MaterialCardView
+        private val timeView = view.findViewById<TextView>(R.id.row_time)
+        private val textView = view.findViewById<TextView>(R.id.row_text)
 
-        init {
-            orientation = VERTICAL
-            setPadding(16, 12, 16, 12)
-            addView(timeView)
-            addView(textView)
-        }
-
-        fun bind(subtitle: Subtitle, active: Boolean) {
+        fun bind(subtitle: Subtitle, active: Boolean, onClick: () -> Unit) {
             timeView.text = formatTime(subtitle.startMs)
             textView.text = subtitle.text
-            if (active) {
-                setBackgroundColor(Color.parseColor("#E3F2FD"))
-                timeView.setTextColor(Color.parseColor("#1565C0"))
-                textView.setTextColor(Color.parseColor("#0D47A1"))
-            } else {
-                setBackgroundColor(Color.TRANSPARENT)
-                timeView.setTextColor(Color.parseColor("#888888"))
-                textView.setTextColor(Color.parseColor("#212121"))
-            }
+            val context = itemView.context
+            card.setCardBackgroundColor(
+                ContextCompat.getColor(
+                    context,
+                    if (active) R.color.subtitle_active_bg else R.color.subtitle_bg,
+                ),
+            )
+            timeView.setBackgroundResource(
+                if (active) R.drawable.bg_time_pill_active else R.drawable.bg_time_pill,
+            )
+            timeView.setTextColor(
+                ContextCompat.getColor(
+                    context,
+                    if (active) R.color.time_pill_active_text else R.color.subtitle_time,
+                ),
+            )
+            textView.setTextColor(
+                ContextCompat.getColor(
+                    context,
+                    if (active) R.color.subtitle_active_text else R.color.subtitle_text,
+                ),
+            )
+            itemView.setOnClickListener { onClick() }
         }
     }
 }

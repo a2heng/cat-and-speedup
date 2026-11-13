@@ -29,10 +29,13 @@ import java.io.File
 class OfflineAsr(private val context: Context) {
     class ModelMissing(message: String) : IllegalStateException(message)
 
-    private enum class Kind(val label: String, val subdir: String) {
-        XASR("X-ASR Zipformer zh-en int8", "models/zipformer-zh-en"),
-        PARAFORMER("Paraformer-zh int8", "models/paraformer-zh"),
-        FUNASR("FunASR-Nano int8", "models/funasr-nano"),
+    private enum class Kind(
+        val short: String,
+        val subdir: String,
+    ) {
+        XASR("X-ASR Zipformer", "models/zipformer-zh-en"),
+        PARAFORMER("Paraformer-zh", "models/paraformer-zh"),
+        FUNASR("FunASR-Nano", "models/funasr-nano"),
     }
 
     private data class ModelLocation(
@@ -45,9 +48,12 @@ class OfflineAsr(private val context: Context) {
 
     /** Human readable description of where the model was found, or how to install it. */
     fun modelStatus(): String {
-        val location = locate() ?: return "未找到 ASR 模型\n请放入：${expectedDir().absolutePath}"
-        val source = if (location.fromAssets) "APK 内置 assets" else location.dir
-        return "模型：${location.kind.label}（$source）"
+        val location = locate() ?: return "模型：未找到"
+        return if (location.fromAssets) {
+            "模型：${location.kind.short} · assets"
+        } else {
+            "模型：${location.kind.short}"
+        }
     }
 
     fun hasModel(): Boolean = locate() != null
@@ -84,7 +90,7 @@ class OfflineAsr(private val context: Context) {
     private fun createRecognizer(): OfflineRecognizer {
         val location = locate()
             ?: throw ModelMissing("未找到 ASR 模型，请放入 ${expectedDir().absolutePath}")
-        Log.i(TAG, "loading ${location.kind.label}: dir=${location.dir} assets=${location.fromAssets}")
+        Log.i(TAG, "loading ${location.kind.short}: dir=${location.dir} assets=${location.fromAssets}")
         val startedAt = System.currentTimeMillis()
         val modelConfig = when (location.kind) {
             Kind.XASR -> OfflineModelConfig(
@@ -130,7 +136,7 @@ class OfflineAsr(private val context: Context) {
         } else {
             OfflineRecognizer(config = config)
         }
-        Log.i(TAG, "${location.kind.label} ready in ${System.currentTimeMillis() - startedAt}ms")
+        Log.i(TAG, "${location.kind.short} ready in ${System.currentTimeMillis() - startedAt}ms")
         return created
     }
 

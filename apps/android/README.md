@@ -5,10 +5,10 @@
 - 加入视频：SAF 选择，也支持从文件管理器 `VIEW` 打开（`video/*`）。
 - 切分：设备端按响度阈值（等价 `silencedetect=noise=-30dB:d=0.5`）算有序片段计划。
   人声 1x、静音 Nx，参数在界面上直接改：静音倍速 / 判定阈值 dB / 最短静音 ms / 边界余量 ms。
-- 播放：默认“跟随加速”，按片段自动切 1x / Nx，状态栏会显示当前速度和原因（人声段 / 跳过静音）。
-- 转写：设备端 sherpa-onnx + Fun-ASR-Nano-2512 int8，先按计划只解码人声段（100–200 ms 余量），
+- 播放：默认“跟随加速”，按片段自动切 1x / Nx；点速度胶囊切换跟随，暂停/进度条是自绘的紧凑控制条。
+- 转写：设备端 sherpa-onnx + X-ASR Zipformer zh-en int8，先按计划只解码人声段（100–200 ms 余量），
   再按 30 s 分块送 ASR，结果落回原时间轴；失败不影响导出。
-- 字幕面板：原时间轴时间戳，跟播高亮，点一条直接跳到原片位置。
+- 字幕面板：原时间轴时间戳胶囊 + 正文的行式卡片，跟播高亮，点一条直接跳到原片位置。
 - 导出视频：Media3 Transformer 整条一次变速重编码（`SpeedProvider` 按源时间给速度），
   音画同步、保留源分辨率与帧率，成片写到 `Movies/CatSpeedup/`；长片耗时约等于编码时长。
 - 导出字幕：标准 SRT（`HH:MM:SS,mmm`），写到 `Download/CatSpeedup/`。
@@ -62,6 +62,15 @@ adb logcat -s CatSpeedup
 
 会打印切分参数与每段边界、静音检测结果、ASR 分块和耗时、每次变速点（含源时间）、导出进度与编码结果。
 出错时带堆栈，先看这里再改。
+
+无界面联调（adb）：
+
+```bash
+adb shell am start -a android.intent.action.VIEW -d "file:///sdcard/.../test.mp4" -t video/mp4 \
+  --ez auto_analyze true --ez auto_transcribe true --ez auto_export true dev.a2heng.catspeedup
+# 把当前布局画成 PNG，熄屏也能取（开发用）
+adb shell am start ... --ez dump_ui true
+```
 
 ## 已知限制
 

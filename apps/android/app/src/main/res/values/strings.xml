@@ -6,11 +6,23 @@
     <string name="transcribe_local">转写</string>
     <string name="export_video">导出视频</string>
     <string name="export_subtitles">导出字幕</string>
-    <string name="follow_plan">跟随加速</string>
+    <string name="adjust">调整</string>
     <string name="label_speed">静音倍速</string>
     <string name="label_noise">判定阈值</string>
     <string name="label_min_silence">最短静音</string>
     <string name="label_margin">边界余量</string>
-    <string name="speed_state_idle">播放：1x 原速</string>
-    <string name="subtitle_hint">字幕（点一条跳到原片位置）</string>
+    <string name="hint_speed">静音倍速 (x)</string>
+    <string name="hint_noise">判定阈值 (dB)</string>
+    <string name="hint_min_silence">最短静音 (ms)</string>
+    <string name="hint_margin">边界余量 (ms)</string>
+    <string name="speed_state_idle">1x · 原速</string>
+    <string name="subtitle_header">字幕</string>
+    <string name="subtitle_hint">点一条跳转原片</string>
+    <string name="subtitle_empty">还没有字幕，先点“转写”</string>
+    <string name="subtitle_count">%1$d 条</string>
+    <string name="follow_on">跟随加速：开</string>
+    <string name="follow_off">跟随加速：关</string>
+    <string name="follow_toggle_desc">点此切换跟随加速</string>
+    <string name="play">播放</string>
+    <string name="pause">暂停</string>
 </resources>
