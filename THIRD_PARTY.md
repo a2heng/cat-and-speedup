@@ -15,6 +15,8 @@ third-party software; their licenses apply to their own code and binaries.
 - **X-ASR Zipformer zh-en int8** — Android default ASR weights (derived from
   https://github.com/Gilgamesh-J/X-ASR). Not bundled; check the upstream model
   license before redistribution.
+- **Silero VAD** — speech activity detection model (`silero_vad.onnx`), MIT.
+  Not bundled; downloaded by `scripts/fetch-asr-android-model.sh`.
 - **AndroidX Media3** (ExoPlayer / Transformer / UI) — Apache-2.0. Android
   playback and speed-changing export.
 - **JUnit 4** — Eclipse Public License 1.0. Android unit tests only.

@@ -10,8 +10,8 @@ android {
         applicationId = "dev.a2heng.catspeedup"
         minSdk = 26
         targetSdk = 37
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 6
+        versionName = "0.6.0"
 
         ndk {
             // sherpa-onnx ships prebuilt JNI libs; the model runs on 64-bit ARM only.

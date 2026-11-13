@@ -39,6 +39,7 @@ object AppPrefs {
 data class CachedTranscript(
     val durationMs: Long,
     val subtitles: List<Subtitle>,
+    val speech: List<LongRange>,
 )
 
 /**
@@ -72,7 +73,18 @@ object TranscriptStore {
                     text = item.getString("text"),
                 )
             }
-            CachedTranscript(duration, subtitles)
+            val speech = ArrayList<LongRange>()
+            val speechArray = root.optJSONArray("speech")
+            if (speechArray != null) {
+                for (index in 0 until speechArray.length()) {
+                    val pair = speechArray.getJSONArray(index)
+                    speech += pair.getLong(0)..pair.getLong(1)
+                }
+            } else {
+                // Old cache from before token-range planning.
+                speech += subtitles.map { it.startMs..it.endMs }
+            }
+            CachedTranscript(duration, subtitles, mergeSpeechRanges(speech))
         }.onFailure {
             Log.w(TAG, "transcript cache read failed: ${file.name}", it)
         }.getOrNull()
@@ -83,6 +95,7 @@ object TranscriptStore {
         uri: Uri,
         durationMs: Long,
         subtitles: List<Subtitle>,
+        speech: List<LongRange>,
     ) {
         runCatching {
             val array = JSONArray()
@@ -94,9 +107,14 @@ object TranscriptStore {
                         .put("text", subtitle.text),
                 )
             }
+            val speechArray = JSONArray()
+            for (range in speech) {
+                speechArray.put(JSONArray().put(range.first).put(range.last))
+            }
             val root = JSONObject()
                 .put("duration_ms", durationMs)
                 .put("segments", array)
+                .put("speech", speechArray)
             file(context, uri).writeText(root.toString())
             Log.i(TAG, "transcript cached: ${subtitles.size} lines for $uri")
         }.onFailure {

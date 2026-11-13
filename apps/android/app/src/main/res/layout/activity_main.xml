@@ -161,7 +161,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
-                android:text="10×"
+                android:text="8×"
                 android:textColor="?attr/colorPrimary"
                 android:textSize="12sp" />
         </LinearLayout>
@@ -171,9 +171,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:stepSize="1"
-            android:value="10"
+            android:value="8"
             android:valueFrom="2"
-            android:valueTo="20"
+            android:valueTo="8"
             app:thumbHeight="14dp"
             app:thumbWidth="4dp"
             app:tickVisible="false"

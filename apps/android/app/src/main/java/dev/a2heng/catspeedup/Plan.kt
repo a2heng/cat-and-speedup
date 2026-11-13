@@ -54,7 +54,7 @@ data class PlaybackPlan(
 
 object PlanDefaults {
     const val VOICE_SPEED = 1f
-    const val SILENCE_SPEED = 10f
+    const val SILENCE_SPEED = 8f
     const val MARGIN_MS = 150L
     const val MIN_SPEEDUP_SILENCE_MS = 5_000L
     const val FALLBACK_NOISE_DB = -30f
@@ -159,8 +159,9 @@ object SilenceDetector {
 
     /**
      * Build the plan from ASR speech ranges instead of loudness detection.
-     * Speech stays 1x; only gaps >= [PlanOptions.minSpeedupSilenceMs] are sped up,
-     * so short sentence pauses never cause a speed change.
+     * Speech stays 1x; only raw gaps >= [PlanOptions.minSpeedupSilenceMs] are
+     * sped up. The padding is applied inside the voice ranges, so it does not
+     * eat into the gap that decides whether to accelerate.
      */
     fun buildPlanFromSpeech(
         durationMs: Long,
@@ -170,29 +171,40 @@ object SilenceDetector {
         require(durationMs > 0) { "视频时长为 0" }
         val ranges = mergeRanges(
             speechRanges.mapNotNull { range ->
-                val start = (range.first - options.marginMs).coerceIn(0, durationMs)
-                val end = (range.last + options.marginMs).coerceIn(0, durationMs)
+                val start = range.first.coerceIn(0, durationMs)
+                val end = range.last.coerceIn(0, durationMs)
                 if (end > start) Range(start, end) else null
             },
         )
 
         val segments = ArrayList<Segment>(ranges.size * 2 + 1)
         var cursor = 0L
+        var rawCursor = 0L
         for (range in ranges) {
-            val gap = range.startMs - cursor
-            if (gap >= options.minSpeedupSilenceMs) {
-                addSegment(segments, cursor, range.startMs, options.silenceSpeed, false)
-                cursor = range.startMs
+            val rawGap = range.startMs - rawCursor
+            if (rawGap >= options.minSpeedupSilenceMs) {
+                val voiceStart = (range.startMs - options.marginMs).coerceAtLeast(cursor)
+                if (voiceStart > cursor) {
+                    addSegment(segments, cursor, voiceStart, options.silenceSpeed, false)
+                }
+                val voiceEnd = (range.endMs + options.marginMs)
+                    .coerceAtMost(durationMs)
+                    .coerceAtLeast(voiceStart)
+                addSegment(segments, voiceStart, voiceEnd, options.voiceSpeed, true)
+                cursor = voiceEnd
+            } else {
+                val voiceEnd = (range.endMs + options.marginMs)
+                    .coerceAtMost(durationMs)
+                    .coerceAtLeast(cursor)
+                addSegment(segments, cursor, voiceEnd, options.voiceSpeed, true)
+                cursor = voiceEnd
             }
-            // Short gap: keep it at 1x by starting the voice segment at the cursor.
-            val start = if (range.startMs > cursor) cursor else range.startMs
-            addSegment(segments, start, range.endMs, options.voiceSpeed, true)
-            cursor = range.endMs
+            rawCursor = range.endMs
         }
 
         if (cursor < durationMs) {
-            val tailMs = durationMs - cursor
-            if (tailMs >= options.minSpeedupSilenceMs) {
+            val tailGap = durationMs - rawCursor
+            if (tailGap >= options.minSpeedupSilenceMs) {
                 addSegment(segments, cursor, durationMs, options.silenceSpeed, false)
             } else {
                 addSegment(segments, cursor, durationMs, options.voiceSpeed, true)
@@ -205,6 +217,14 @@ object SilenceDetector {
             "plan(asr): speech=${ranges.size} ranges, segments=${segments.size}, " +
                 "output=${plan.outputDurationMs()}ms",
         )
+        Log.d(TAG, "plan(asr) options=$options")
+        segments.take(30).forEachIndexed { index, segment ->
+            Log.d(
+                TAG,
+                "  asr segment[$index] ${segment.startMs}-${segment.endMs}ms " +
+                    "${segment.speed}x ${if (segment.isVoice) "voice" else "silence"}",
+            )
+        }
         return plan
     }
 

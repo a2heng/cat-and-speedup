@@ -3,10 +3,10 @@
 原生 Kotlin + Media3。主流程：**加入视频 → 转写并切分（只转写一次）→ 调参后“重新切分” → 导出视频 / 导出字幕**。
 
 - 加入视频：SAF 选择，也支持从文件管理器 `VIEW` 打开（`video/*`）。
-- 转写并切分：**ASR-first**。第一次按这个按钮时解码一遍音频、按 30 s 分块转写，用 token
-  时间戳得到人声段；只有停顿 ≥ “最短加速间隙”（默认 5 秒）才加速，短停顿保持 1x。
-  之后按钮变成“重新切分”，同一视频再按只重排计划，**不重新解码、不重新转写**。
-  人声 1x、停顿 10x（默认），不会因为响度把小声说话误判成静音。
+- 转写并切分：**VAD + ASR**。第一次按这个按钮时解码一遍音频，Silero VAD 给出精确的
+  句头/句尾，ASR 只在 VAD 人声段上跑；只有句间停顿 ≥ “最短加速间隙”（默认 5 秒）才加速，
+  短停顿保持 1x。之后按钮变成“重新切分”，同一视频再按只重排计划，**不重新解码、不重新转写**。
+  人声 1x、停顿 8x（默认，ExoPlayer 上限），不会因为响度把小声说话误判成静音。
 - 调参：跳过静音速度 / 最短加速间隙 / 人声前后留白，全部是滑块；改完立即重排计划，
   **不重新解码、不重新转写**。参数保存在 SharedPreferences，重启后还在；“恢复默认参数”
   会先弹确认，提示当前调整会丢失。
@@ -42,8 +42,8 @@ cd apps/android
 
 ## ASR 模型（手机用轻量模型）
 
-手机用 **X-ASR Zipformer zh-en int8**（约 168 MB，带 token 时间戳，字幕能按句跳转），
-PC 才用 FunASR-Nano。模型不进 APK，手机上的查找顺序：
+手机用 **X-ASR Zipformer zh-en int8**（约 168 MB，带 token 时间戳）做转写，配 **Silero VAD**
+（`silero_vad.onnx`，约 630 KB）定句头句尾；PC 才用 FunASR-Nano。模型不进 APK，手机上的查找顺序：
 
 1. `<external files dir>/models/zipformer-zh-en`
 2. `<internal files dir>/models/zipformer-zh-en`

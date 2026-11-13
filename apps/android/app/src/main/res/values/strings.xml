@@ -16,7 +16,7 @@
     <string name="margin_value_format">%1$d 毫秒</string>
     <string name="reset_defaults">恢复默认参数</string>
     <string name="reset_title">恢复默认参数？</string>
-    <string name="reset_message">跳过静音的速度 10×、停顿 ≥5 秒才加速、人声前后留白 150 毫秒。\n当前调整会丢失；恢复后自动重排计划，不会重新转写。</string>
+    <string name="reset_message">跳过静音的速度 8×、停顿 ≥5 秒才加速、人声前后留白 150 毫秒。\n当前调整会丢失；恢复后自动重排计划，不会重新转写。</string>
     <string name="reset_positive">恢复默认</string>
     <string name="cancel">取消</string>
 

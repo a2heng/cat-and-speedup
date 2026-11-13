@@ -99,7 +99,7 @@ cargo run -p cat-speedup -- transcribe input.mp4 --engine sherpa --sherpa-kind p
 ## Android
 
 ```bash
-# 一次性：拉 sherpa-onnx Android JNI + 轻量 ASR 模型，再推到手机
+# 一次性：拉 sherpa-onnx Android JNI + X-ASR + Silero VAD，再推到手机
 bash scripts/fetch-sherpa-android.sh
 bash scripts/fetch-asr-android-model.sh
 bash scripts/push-asr-android.sh
@@ -109,7 +109,7 @@ source /d/AndroidDevToolchain/env.sh   # 本机工具链，见全局 AGENTS.md
 ./gradlew :app:assembleDebug   # app/build/outputs/apk/debug/app-debug.apk
 ```
 
-界面流程：加入视频 → 转写并切分（首次自动转写并缓存，用 ASR 时间戳切分）→ 调参后“重新切分”（只重排，不重新转写）→ 导出视频 / 导出字幕。
+界面流程：加入视频 → 转写并切分（Silero VAD 定句头句尾，ASR 只跑人声段并缓存）→ 调参后“重新切分”（只重排，不重新转写）→ 导出视频 / 导出字幕。
 默认：人声 1x、停顿 10x、停顿 ≥5 秒才加速、人声前后留白 150ms；参数持久化，“恢复默认”有确认提示。
 切分后播放默认跟随片段加速（人声 1x，静音 Nx），底部字幕面板按原时间轴显示，点一条跳到原片位置。
 

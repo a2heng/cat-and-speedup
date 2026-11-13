@@ -50,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: SubtitleAdapter
     private lateinit var offlineAsr: OfflineAsr
     private lateinit var videoExporter: VideoExporter
+    private lateinit var vad: VoiceActivityDetector
     private lateinit var silenceSpeedSlider: Slider
     private lateinit var minGapSlider: Slider
     private lateinit var marginSlider: Slider
@@ -58,6 +59,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var marginValueLabel: TextView
 
     private var subtitles: List<Subtitle> = emptyList()
+    private var speechRanges: List<LongRange> = emptyList()
     private var currentIndex = -1
     private var videoUri: Uri? = null
     private var plan: PlaybackPlan? = null
@@ -72,6 +74,7 @@ class MainActivity : AppCompatActivity() {
     private var exporting = false
 
     private val handler = Handler(Looper.getMainLooper())
+    private val speedBoundaryRunnable = Runnable { applyPlaybackSpeed(force = true) }
     private val tick = object : Runnable {
         override fun run() {
             updateCurrentSubtitle()
@@ -103,6 +106,7 @@ class MainActivity : AppCompatActivity() {
         videoUri = uri
         plan = null
         subtitles = emptyList()
+        speechRanges = emptyList()
         transcriptReady = false
         currentIndex = -1
         adapter.setItems(subtitles)
@@ -115,6 +119,7 @@ class MainActivity : AppCompatActivity() {
         if (cached != null) {
             cachedDurationMs = maxOf(cachedDurationMs, cached.durationMs)
             subtitles = cached.subtitles
+            speechRanges = cached.speech
             transcriptReady = true
             currentIndex = -1
             adapter.setItems(subtitles)
@@ -162,6 +167,7 @@ class MainActivity : AppCompatActivity() {
         playerView.player = player
         offlineAsr = OfflineAsr(applicationContext)
         videoExporter = VideoExporter(this)
+        vad = VoiceActivityDetector(applicationContext)
 
         adapter = SubtitleAdapter()
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -244,7 +250,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyOptionsToSliders(options: PlanOptions) {
         suppressingSliderCallback = true
-        silenceSpeedSlider.value = options.silenceSpeed.coerceIn(2f, 20f)
+        silenceSpeedSlider.value = options.silenceSpeed.coerceIn(2f, 8f)
         minGapSlider.value = (options.minSpeedupSilenceMs / 1000).coerceIn(1, 30).toFloat()
         marginSlider.value = options.marginMs.coerceIn(0, 400).toFloat()
         suppressingSliderCallback = false
@@ -290,7 +296,7 @@ class MainActivity : AppCompatActivity() {
         if (duration <= 0) return
         val result = SilenceDetector.buildPlanFromSpeech(
             duration,
-            subtitles.map { it.startMs..it.endMs },
+            speechRanges,
             options,
         )
         plan = result
@@ -380,6 +386,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         handler.removeCallbacks(tick)
+        handler.removeCallbacks(replanRunnable)
+        handler.removeCallbacks(speedBoundaryRunnable)
         if (!exporting) {
             offlineAsr.release()
         }
@@ -461,37 +469,46 @@ class MainActivity : AppCompatActivity() {
             runCatching {
                 val duration = resolveDuration(uri)
                 cachedDurationMs = duration
-                val transcript = transcribeAll(uri, duration) { done, total ->
+                val transcript = transcribeAll(uri, duration) { doneMs, totalMs ->
                     val seconds = (System.currentTimeMillis() - startedAt) / 1000
+                    val percent = if (totalMs > 0) (doneMs * 100 / totalMs).toInt() else 0
                     runOnUiThread {
-                        statusView.text = "切分中：转写 $done/$total（${seconds}s）"
+                        statusView.text = "切分中：识别 $percent%（${seconds}s）"
                     }
                 }
-                TranscriptStore.save(this, uri, duration, transcript)
+                TranscriptStore.save(
+                    this,
+                    uri,
+                    duration,
+                    transcript.subtitles,
+                    transcript.speech,
+                )
                 val result = SilenceDetector.buildPlanFromSpeech(
                     duration,
-                    transcript.map { it.startMs..it.endMs },
+                    transcript.speech,
                     options,
                 )
                 Pair(transcript, result)
             }.onSuccess { (transcript, result) ->
                 Log.i(
                     TAG,
-                    "analyze done: lines=${transcript.size} segments=${result.segments.size}",
+                    "analyze done: lines=${transcript.subtitles.size} " +
+                        "speech=${transcript.speech.size} segments=${result.segments.size}",
                 )
                 runOnUiThread {
                     analyzing = false
                     stopProgress()
-                    subtitles = transcript
+                    subtitles = transcript.subtitles
+                    speechRanges = transcript.speech
                     transcriptReady = true
                     currentIndex = -1
-                    adapter.setItems(transcript)
+                    adapter.setItems(subtitles)
                     plan = result
                     planOptions = options
                     followPlan = true
                     applyPlaybackSpeed(force = true)
                     showPlanSummary(result)
-                    statusView.text = "转写 ${transcript.size} 条（已缓存，改参数不会重转）"
+                    statusView.text = "转写 ${transcript.subtitles.size} 条（已缓存，改参数不会重转）"
                     updateAnalyzeButton()
                     if (resumePlayback) player.playWhenReady = true
                     next?.invoke()
@@ -543,8 +560,20 @@ class MainActivity : AppCompatActivity() {
     private fun transcribeAll(
         uri: Uri,
         durationMs: Long,
-        onProgress: (done: Int, total: Int) -> Unit,
-    ): List<Subtitle> {
+        onProgress: (doneMs: Long, totalMs: Long) -> Unit,
+    ): TranscriptData =
+        if (vad.hasModel()) {
+            runCatching { transcribeWithVad(uri, durationMs, onProgress) }
+                .onFailure {
+                    Log.e(TAG, "VAD pipeline failed, falling back to token chunks", it)
+                }
+                .getOrElse { transcribeChunks(uri, durationMs, onProgress) }
+        } else {
+            Log.w(TAG, "VAD model missing, falling back to full-audio ASR chunks")
+            transcribeChunks(uri, durationMs, onProgress)
+        }
+
+    private fun decodeRanges(durationMs: Long): List<LongRange> {
         val ranges = ArrayList<LongRange>()
         var start = 0L
         while (start < durationMs) {
@@ -552,29 +581,111 @@ class MainActivity : AppCompatActivity() {
             if (end > start) ranges += start..end
             start = end
         }
-        val all = ArrayList<Subtitle>()
-        var done = 0
-        AudioDecoder.decodeRangesTo16kMono(this, uri, ranges) { index, samples ->
-            if (samples.isNotEmpty() && isAudible(samples)) {
-                val range = ranges[index]
-                val result = offlineAsr.transcribe(samples)
-                val added = buildSubtitles(result, range.first, range.last - range.first)
-                all += added
-                Log.d(
-                    TAG,
-                    "asr chunk[$index] ${range.first}-${range.last}ms " +
-                        "samples=${samples.size} -> ${added.size} lines",
-                )
-            } else {
-                Log.d(TAG, "asr chunk[$index] skipped (quiet)")
-            }
-            done++
-            onProgress(done, ranges.size)
-        }
-        return all
+        return ranges
     }
 
-    /** Skip obviously silent 30 s chunks; speech detection itself comes from ASR tokens. */
+    /** VAD finds speech boundaries; ASR only sees those ranges. */
+    private fun transcribeWithVad(
+        uri: Uri,
+        durationMs: Long,
+        onProgress: (doneMs: Long, totalMs: Long) -> Unit,
+    ): TranscriptData {
+        val engine = vad.create()
+        Log.i(TAG, "vad start: model=${vad.modelStatus()} duration=${durationMs}ms")
+        val lines = ArrayList<Subtitle>()
+        val speech = ArrayList<LongRange>()
+        var processedMs = 0L
+        try {
+            AudioDecoder.decodeRangesTo16kMono(this, uri, decodeRanges(durationMs)) { _, samples ->
+                engine.acceptWaveform(samples)
+                drainVad(engine, lines, speech)
+                processedMs += samples.size * 1000L / 16_000
+                onProgress(processedMs, durationMs)
+            }
+            engine.flush()
+            drainVad(engine, lines, speech)
+        } finally {
+            runCatching { engine.release() }
+        }
+        val merged = mergeSpeechRanges(speech)
+        Log.i(TAG, "vad: ${merged.size} speech ranges, ${lines.size} subtitle lines")
+        return TranscriptData(lines, merged)
+    }
+
+    private fun drainVad(
+        engine: com.k2fsa.sherpa.onnx.Vad,
+        lines: MutableList<Subtitle>,
+        speech: MutableList<LongRange>,
+    ) {
+        while (!engine.empty()) {
+            val segment = engine.front()
+            engine.pop()
+            val startMs = segment.start * 1000L / 16_000
+            val segmentMs = segment.samples.size * 1000L / 16_000
+            if (segmentMs < 100) continue
+            speech += startMs..(startMs + segmentMs)
+            if (segment.samples.isEmpty()) continue
+            transcribeSegment(segment.samples, startMs, lines)
+            Log.d(
+                TAG,
+                "vad segment ${startMs}-${startMs + segmentMs}ms " +
+                    "samples=${segment.samples.size}",
+            )
+        }
+    }
+
+    /**
+     * Transducer models reject feature lengths that are not a multiple of the
+     * downsampling factor; VAD segments are arbitrary lengths, so split to 30 s
+     * and pad to 640 samples (4 x 10 ms frames).
+     */
+    private fun transcribeSegment(
+        samples: FloatArray,
+        startMs: Long,
+        lines: MutableList<Subtitle>,
+    ) {
+        val maxSamples = ASR_CHUNK_MS.toInt() * 16
+        var offset = 0
+        while (offset < samples.size) {
+            val end = minOf(samples.size, offset + maxSamples)
+            val piece = samples.copyOfRange(offset, end)
+            val padded = if (piece.size % 640 == 0) {
+                piece
+            } else {
+                piece.copyOf(((piece.size / 640) + 1) * 640)
+            }
+            val result = offlineAsr.transcribe(padded)
+            val pieceStartMs = startMs + offset * 1000L / 16_000
+            val pieceMs = (end - offset) * 1000L / 16_000
+            lines += buildSubtitles(result, pieceStartMs, pieceMs)
+            offset = end
+        }
+    }
+
+    /** Fallback without VAD: ASR every audible 30 s chunk and use token timestamps. */
+    private fun transcribeChunks(
+        uri: Uri,
+        durationMs: Long,
+        onProgress: (doneMs: Long, totalMs: Long) -> Unit,
+    ): TranscriptData {
+        val ranges = decodeRanges(durationMs)
+        val lines = ArrayList<Subtitle>()
+        val speech = ArrayList<LongRange>()
+        var processedMs = 0L
+        AudioDecoder.decodeRangesTo16kMono(this, uri, ranges) { index, samples ->
+            val range = ranges[index]
+            if (samples.isNotEmpty() && isAudible(samples)) {
+                val result = offlineAsr.transcribe(samples)
+                lines += buildSubtitles(result, range.first, range.last - range.first)
+                speech += speechRangesFrom(result, range.first, range.last - range.first)
+            }
+            processedMs += samples.size * 1000L / 16_000
+            onProgress(processedMs, durationMs)
+        }
+        return TranscriptData(lines, mergeSpeechRanges(speech))
+    }
+
+    /** Skip obviously silent 30 s chunks when VAD is unavailable. */
     private fun isAudible(samples: FloatArray): Boolean {
         var sum = 0.0
         for (value in samples) sum += value * value
@@ -646,6 +757,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyPlaybackSpeed(force: Boolean = false) {
+        handler.removeCallbacks(speedBoundaryRunnable)
         val segment = if (followPlan) plan?.segmentAt(player.currentPosition) else null
         val desired = segment?.speed ?: 1f
         if (force || player.playbackParameters.speed != desired) {
@@ -665,6 +777,14 @@ class MainActivity : AppCompatActivity() {
             else -> "${trimSpeed(segment.speed)}× · 跳过静音"
         }
         if (speedStateView.text != label) speedStateView.text = label
+
+        // Wake up exactly at the next boundary: polling at 100 ms would let
+        // 1 s of speech play at 10x before the speed is taken down.
+        if (segment != null && followPlan && player.isPlaying) {
+            val remainingMs = (segment.endMs - player.currentPosition).coerceAtLeast(1)
+            val delayMs = (remainingMs / desired).toLong().coerceIn(10L, 1_000L)
+            handler.postDelayed(speedBoundaryRunnable, delayMs + 2)
+        }
     }
 
     private var progressRunnable: Runnable? = null

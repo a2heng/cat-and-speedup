@@ -35,7 +35,7 @@ if [[ ! -f "$MODEL/encoder-epoch-99-avg-1.int8.onnx" ]]; then
   exit 1
 fi
 
-"${ADB[@]}" shell "mkdir -p '$DEST'"
+"${ADB[@]}" shell "mkdir -p '$DEST' '$ROOT_DEST'"
 for file in \
   encoder-epoch-99-avg-1.int8.onnx \
   decoder-epoch-99-avg-1.onnx \
@@ -45,6 +45,16 @@ for file in \
   [[ -f "$MODEL/$file" ]] || continue
   "${ADB[@]}" push "$WINMODEL/$file" "$DEST/"
 done
+
+# Silero VAD lives next to the model folders.
+if [[ -f "$ROOT/models/silero_vad.onnx" ]]; then
+  if command -v cygpath >/dev/null 2>&1; then
+    WINVAD="$(cygpath -w "$ROOT/models/silero_vad.onnx")"
+  else
+    WINVAD="$ROOT/models/silero_vad.onnx"
+  fi
+  "${ADB[@]}" push "$WINVAD" "$ROOT_DEST/silero_vad.onnx"
+fi
 
 # Keep only one model on the phone: old Paraformer / FunASR-Nano are unused.
 for old in paraformer-zh funasr-nano; do

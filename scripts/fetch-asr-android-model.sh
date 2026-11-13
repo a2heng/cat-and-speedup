@@ -30,5 +30,13 @@ fetch decoder-epoch-99-avg-1.onnx
 fetch joiner-epoch-99-avg-1.int8.onnx
 fetch tokens.txt
 
+# Silero VAD (2 MB) for speech boundaries.
+if [[ ! -s "$ROOT/models/silero_vad.onnx" ]]; then
+  echo "Downloading silero_vad.onnx..."
+  curl -L --fail --retry 3 --retry-delay 2 \
+    -o "$ROOT/models/silero_vad.onnx" \
+    "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
+fi
+
 ls -lh "$TARGET"
 echo "model: $TARGET"

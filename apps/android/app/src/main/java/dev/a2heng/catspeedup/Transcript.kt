@@ -9,6 +9,58 @@ data class Subtitle(
     val text: String,
 )
 
+/** ASR output for one video: display lines plus token-level speech ranges. */
+data class TranscriptData(
+    val subtitles: List<Subtitle>,
+    val speech: List<LongRange>,
+)
+
+private const val TOKEN_MAX_MS = 500L
+private const val SPEECH_MERGE_GAP_MS = 250L
+
+/**
+ * Speech ranges from token start timestamps.
+ *
+ * A token's end is the next token's start, but that would swallow a following
+ * pause; cap each token at [TOKEN_MAX_MS] so real pauses stay visible.
+ */
+fun speechRangesFrom(
+    result: OfflineRecognizerResult,
+    offsetMs: Long,
+    chunkDurationMs: Long,
+): List<LongRange> {
+    val timestamps = result.timestamps
+    if (timestamps.isEmpty()) return emptyList()
+    val ranges = ArrayList<LongRange>(timestamps.size)
+    for (index in timestamps.indices) {
+        val start = offsetMs + (timestamps[index].coerceAtLeast(0f) * 1000f).toLong()
+        val next = if (index + 1 < timestamps.size) {
+            offsetMs + (timestamps[index + 1].coerceAtLeast(0f) * 1000f).toLong()
+        } else {
+            start + TOKEN_MAX_MS
+        }
+        val end = minOf(next, start + TOKEN_MAX_MS)
+            .coerceAtMost(offsetMs + chunkDurationMs)
+        if (end > start) ranges += start..end
+    }
+    return mergeSpeechRanges(ranges)
+}
+
+/** Merge token ranges that are close enough to belong to the same phrase. */
+fun mergeSpeechRanges(ranges: List<LongRange>): List<LongRange> {
+    val sorted = ranges.filter { it.last >= it.first }.sortedBy { it.first }
+    val merged = ArrayList<LongRange>(sorted.size)
+    for (range in sorted) {
+        val last = merged.lastOrNull()
+        if (last != null && range.first - last.last <= SPEECH_MERGE_GAP_MS) {
+            merged[merged.lastIndex] = last.first..maxOf(last.last, range.last)
+        } else {
+            merged += range
+        }
+    }
+    return merged
+}
+
 /**
  * Turn sherpa token timestamps into sentence-ish subtitles.
  *

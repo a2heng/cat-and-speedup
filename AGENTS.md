@@ -31,13 +31,13 @@
 - `crates/asr`：`AsrEngine` trait。默认 **sherpa-onnx + Fun-ASR-Nano-2512 int8**，完全离线；`whisper` 是可选 feature；OpenAI 兼容 HTTP 只用于内部调试。运行时在 `tools/sherpa-onnx`、模型在 `models/sherpa-onnx-funasr-nano-int8-2025-12-30`（均 gitignore）。
 - `crates/cli`：`cat-speedup` 命令（doctor/analyze/render/prepare-asr/transcribe/map-transcript）。桌面和 Android 都复用 core。
 - `apps/desktop`：GPUI 桌面壳；文件选择、分析、FunASR 转写、字幕点击跳帧、出片。当前是帧预览，不是连续播放器。
-- `apps/android`：原生 Kotlin（XML + AppCompat，不是 Compose）播放器壳，Media3 播放；设备端 **ASR-first**：转写和切分合并为一个按钮（首次“转写并切分”，之后“重新切分”），转写一次并缓存 transcript，用 token 时间戳生成有序片段计划；参数是滑块（静音速度 / 最短加速间隙 / 留白），改参数只重排计划；Media3 Transformer 变速导出视频，导出 SRT。不接入 Cargo workspace。
+- `apps/android`：原生 Kotlin（XML + AppCompat，不是 Compose）播放器壳，Media3 播放；设备端 **ASR-first**：转写和切分合并为一个按钮（首次“转写并切分”，之后“重新切分”），转写一次并缓存 transcript，用 token 时间戳生成有序片段计划；参数是滑块（静音速度（2–8x）/ 最短加速间隙 / 留白），改参数只重排计划；Media3 Transformer 变速导出视频，导出 SRT。不接入 Cargo workspace。
 - 桌面和 Android 首屏都要有“视频 + 字幕面板”：字幕跟播高亮、点击跳转，作为快速看内容和编排的主界面；成片渲染放在其后。
 - 桌面 v1 已落地（帧预览 + 字幕跳帧）；Android 端已落地切分/转写/加速播放/导出，桌面连续播放待做。
 - 桌面依赖 `gpui` 0.2.2（crates.io）；Android 用标准 Android Studio 工程，别混入 GPUI。
 - 两端共用同一套语义：有序 `Segment`、人声 1x、整数毫秒、音画同步；Android 不跑 ffmpeg，导出走 Media3 Transformer（整条一次变速重编码，`SpeedProvider` 按源时间给速度）。
 - Android 长视频禁止整片进内存：解码流式，ASR 按 30 s 分块；音频多声道按“最大幅值”混单声道，避免相位抵消把语音判成静音。
-- Android 的切分信源是 **ASR token 时间戳**，不是响度；响度只在没有模型时兜底，以及用于跳过明显安静的 30 s 块（-50 dB）。默认参数：人声 1x、停顿 10x、停顿 ≥5 s 才加速、人声前后留白 150 ms；参数持久化，“恢复默认”必须弹确认。
+- Android 的切分信源是 **VAD + ASR**：Silero VAD 给出精确句头/句尾，ASR 只在 VAD 人声段上跑并生成字幕；没有 VAD 模型才退回 token 时间戳。默认参数：人声 1x、停顿 8x、停顿 ≥5 s 才加速、人声前后留白 150 ms；参数持久化，“恢复默认”必须弹确认。
 - Android 转写结果按视频 URI 缓存（内部 `files/transcripts/<sha1>.json`），调参、重启都不再转写。
 - Android 日志统一 tag `CatSpeedup`（`adb logcat -s CatSpeedup`）：切分参数与片段、ASR 分块耗时、每次变速点、导出进度/编码结果都打印。
 
@@ -76,7 +76,8 @@
 - 桌面：`cargo run -p cat-speedup-desktop`（GPUI 原生窗口；默认离线，不需要 URL；第一次构建 GPUI 约 3 分钟）
 - Android：`cd apps/android && ./gradlew :app:assembleDebug`（先启用本机工具链，见全局 AGENTS.md / `env.sh`）。
 - Android 单测：`cd apps/android && ./gradlew :app:testDebugUnitTest`。
-- Android 资源：`bash scripts/fetch-sherpa-android.sh`（JNI 库，约 45 MB）；`bash scripts/fetch-asr-android-model.sh` + `bash scripts/push-asr-android.sh`（轻量 Paraformer-zh int8 推到手机）。
+- Android 资源：`bash scripts/fetch-sherpa-android.sh`（JNI 库，约 45 MB）；`bash scripts/fetch-asr-android-model.sh` + `bash scripts/push-asr-android.sh`（X-ASR 模型 + Silero VAD 推到手机）。
+- Android 算法调试（PC）：`python scripts/debug/asr_plan_debug.py 视频.mp4 --gap 1 --margin 150 --speed 8`，走同一份 VAD+ASR 模型并输出切段对比。
 - Android 日志：`adb logcat -s CatSpeedup`。
 - 端到端：`bash scripts/smoke.sh`（生成 6 秒合成视频，跑 analyze/render/prepare-asr/map-transcript）
 - 分析：`cargo run -p cat-speedup -- analyze in.mp4 --speed 4 --margin 0.15 -o plan.json`
