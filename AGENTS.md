@@ -31,10 +31,13 @@
 - `crates/asr`：`AsrEngine` trait。默认 **sherpa-onnx + Fun-ASR-Nano-2512 int8**，完全离线；`whisper` 是可选 feature；OpenAI 兼容 HTTP 只用于内部调试。运行时在 `tools/sherpa-onnx`、模型在 `models/sherpa-onnx-funasr-nano-int8-2025-12-30`（均 gitignore）。
 - `crates/cli`：`cat-speedup` 命令（doctor/analyze/render/prepare-asr/transcribe/map-transcript）。桌面和 Android 都复用 core。
 - `apps/desktop`：GPUI 桌面壳；文件选择、分析、FunASR 转写、字幕点击跳帧、出片。当前是帧预览，不是连续播放器。
-- `apps/android`：Kotlin/Compose 播放器壳，Media3 播放 + 导入原时间轴字幕 JSON；设备端切分/加速未做，不接入 Cargo workspace。
+- `apps/android`：原生 Kotlin（XML + AppCompat，不是 Compose）播放器壳，Media3 播放；设备端已做阈值切分、跟随加速、FunASR 转写、Media3 Transformer 变速导出视频、导出 SRT。不接入 Cargo workspace。
 - 桌面和 Android 首屏都要有“视频 + 字幕面板”：字幕跟播高亮、点击跳转，作为快速看内容和编排的主界面；成片渲染放在其后。
-- 桌面 v1 已落地（帧预览 + 字幕跳帧）；连续播放和 Android 端待做。
+- 桌面 v1 已落地（帧预览 + 字幕跳帧）；Android 端已落地切分/转写/加速播放/导出，桌面连续播放待做。
 - 桌面依赖 `gpui` 0.2.2（crates.io）；Android 用标准 Android Studio 工程，别混入 GPUI。
+- 两端共用同一套语义：有序 `Segment`、人声 1x、整数毫秒、音画同步；Android 不跑 ffmpeg，导出走 Media3 Transformer（整条一次变速重编码，`SpeedProvider` 按源时间给速度）。
+- Android 长视频禁止整片进内存：分析流式解码，ASR 只解码人声段且按 30 s 分块；音频多声道按“最大幅值”混单声道，避免相位抵消把语音判成静音。
+- Android 日志统一 tag `CatSpeedup`（`adb logcat -s CatSpeedup`）：切分参数与片段、ASR 分块耗时、每次变速点、导出进度/编码结果都打印。
 
 ## 必须避开的坑
 
@@ -49,8 +52,8 @@
 
 ## ASR 路线（2026-11）
 
-- **默认双端统一**：sherpa-onnx + **Fun-ASR-Nano-2512 int8**（约 972 MB，中文/英/日 + 7 方言/26 口音），桌面走 `sherpa-onnx-offline`，Android 走 sherpa-onnx Kotlin API；同一份模型文件、同一套 token 时间戳。
-- 低配机器回退：Paraformer-zh int8（字级时间戳，模型更小）。
+- **PC 用好的，手机用轻的**：桌面默认 sherpa-onnx + **Fun-ASR-Nano-2512 int8**（约 972 MB，中文/英/日 + 7 方言/26 口音），走 `sherpa-onnx-offline`；Android 默认 **X-ASR Zipformer zh-en int8**（约 168 MB，**带 token 时间戳**），走同一套 sherpa-onnx Kotlin API。两端的 ASR 结果都落回原时间轴。
+- Android 上的 Paraformer-zh int8（约 218 MB）在 sherpa-onnx v2.0.1 里 `timestamps` 为空，字幕只能按块均分，已降级为 fallback；`models/funasr-nano` 仍可识别但默认不用（972 MB 机型容易 OOM），推新模型时脚本会清掉旧目录。
 - 可选高质量：Qwen3-ASR-1.7B + ForcedAligner（PC GPU）；FireRedASR2-AED（中文精度上限，PC 评测）。
 - Qwen3/FireRed 走 PC 本地 HTTP 仅用于内部调试，不作为产品界面，也不进 Android。
 - FireRed 的 CER 优势是厂商自测口径，必须用我们自己的中文长视频复测后再定默认。
@@ -69,7 +72,10 @@
 - 检查：`cargo run -p cat-speedup -- doctor`（应显示 sherpa 路径和 funasr 模型目录）
 - 单测：`cargo test --workspace`；静态检查：`cargo clippy --workspace --all-targets -- -D warnings`。注意 `default-members` 不含 `apps/desktop`，桌面单独 `cargo check -p cat-speedup-desktop`。
 - 桌面：`cargo run -p cat-speedup-desktop`（GPUI 原生窗口；默认离线，不需要 URL；第一次构建 GPUI 约 3 分钟）
-- Android：`cd apps/android && JAVA_HOME=/d/006_Android/jdk-25 ANDROID_HOME=/d/006_Android/sdk ./gradlew :app:assembleDebug`（本机工具链固定 `D:\006_Android`：JDK 25 / Gradle 9.9.1 / AGP 9.5.1 / compileSdk 37；不要在项目里再放一套）。
+- Android：`cd apps/android && ./gradlew :app:assembleDebug`（先启用本机工具链，见全局 AGENTS.md / `env.sh`）。
+- Android 单测：`cd apps/android && ./gradlew :app:testDebugUnitTest`。
+- Android 资源：`bash scripts/fetch-sherpa-android.sh`（JNI 库，约 45 MB）；`bash scripts/fetch-asr-android-model.sh` + `bash scripts/push-asr-android.sh`（轻量 Paraformer-zh int8 推到手机）。
+- Android 日志：`adb logcat -s CatSpeedup`。
 - 端到端：`bash scripts/smoke.sh`（生成 6 秒合成视频，跑 analyze/render/prepare-asr/map-transcript）
 - 分析：`cargo run -p cat-speedup -- analyze in.mp4 --speed 4 --margin 0.15 -o plan.json`
 - 出片：`cargo run -p cat-speedup -- render in.mp4 out.mp4 --plan plan.json`

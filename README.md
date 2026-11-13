@@ -12,9 +12,9 @@ Long-video auto editor: keep speech at 1x, speed up non-speech, and show a trans
 - [x] ASR 预缩短音频 + 原时间轴映射
 - [x] **内置 FunASR**：sherpa-onnx + Fun-ASR-Nano-2512 int8，离线
 - [x] GPUI 桌面壳：打开视频、分析、转写字幕、出片、字幕点击跳帧
-- [x] Android 播放器壳：Media3 视频 + 导入原时间轴字幕 JSON
+- [x] Android：Media3 播放 + 设备端切分 / 跟随加速 / 本地 FunASR / 导出视频 / 导出 SRT
 - [ ] 桌面连续播放（当前是帧预览 + 字幕跳帧）
-- [ ] Android 设备端内置 FunASR / 切分 / 加速
+- [ ] Android 转写进度可视化（当前只有状态栏文字 + logcat）
 
 ## 环境
 
@@ -99,13 +99,23 @@ cargo run -p cat-speedup -- transcribe input.mp4 --engine sherpa --sherpa-kind p
 ## Android
 
 ```bash
+# 一次性：拉 sherpa-onnx Android JNI + 轻量 ASR 模型，再推到手机
+bash scripts/fetch-sherpa-android.sh
+bash scripts/fetch-asr-android-model.sh
+bash scripts/push-asr-android.sh
+
 cd apps/android
-JAVA_HOME=/d/006_Android/jdk-25 ANDROID_HOME=/d/006_Android/sdk ./gradlew :app:assembleDebug
-# app/build/outputs/apk/debug/app-debug.apk
+source /d/AndroidDevToolchain/env.sh   # 本机工具链，见全局 AGENTS.md
+./gradlew :app:assembleDebug   # app/build/outputs/apk/debug/app-debug.apk
 ```
 
-当前 APK 是播放器壳：选择视频、导入 PC 生成的 `transcript.json`、字幕跟播并点击跳转。
-下一步把 sherpa-onnx 的 Android Kotlin API 和同一份 FunASR Nano 模型接进去，实现手机端离线字幕与切分/加速。
+界面流程：加入视频 → 切分（响度阈值，可调倍速/阈值/最短静音/余量）→ 转写（设备端 X-ASR Zipformer）→ 导出视频 / 导出字幕。
+切分后播放默认跟随片段加速（人声 1x，静音 Nx），底部字幕面板按原时间轴显示，点一条跳到原片位置。
+
+导出视频用 Media3 Transformer 逐段重编码再拼接，参数沿用源分辨率/帧率，成片在 `Movies/CatSpeedup/`；
+字幕导出标准 SRT，在 `Download/CatSpeedup/`。转写按人声段切片（30 s/块），长视频不会整片进内存。
+
+日志：`adb logcat -s CatSpeedup`（切分参数、片段边界、ASR 分块、变速点、导出进度都在里面）。
 
 ## 目录
 
@@ -113,8 +123,10 @@ JAVA_HOME=/d/006_Android/jdk-25 ANDROID_HOME=/d/006_Android/sdk ./gradlew :app:a
 - `crates/asr`：`AsrEngine` trait、sherpa-onnx 离线 FunASR、可选 whisper、调试用 HTTP
 - `crates/cli`：`cat-speedup` 命令行
 - `apps/desktop`：GPUI 桌面端
-- `apps/android`：Android 原生播放器壳
+- `apps/android`：Android 原生播放器壳（切分 / 本地转写 / 变速导出）
 - `scripts/fetch-asr.sh`：下载 sherpa-onnx + FunASR Nano
+- `scripts/fetch-sherpa-android.sh`：下载 sherpa-onnx Android JNI 库
+- `scripts/push-asr-android.sh`：把 FunASR Nano 推到手机
 
 ## License
 

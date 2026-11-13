@@ -3,3 +3,9 @@ build/
 local.properties
 *.iml
 .idea/
+
+# Native sherpa-onnx libs: fetch with scripts/fetch-sherpa-android.sh
+app/src/main/jniLibs/
+
+# FunASR model is not bundled in the APK (972 MB); side-load it instead.
+app/src/main/assets/models/

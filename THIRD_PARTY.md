@@ -12,6 +12,12 @@ third-party software; their licenses apply to their own code and binaries.
   Android Kotlin API).
 - **Fun-ASR-Nano-2512** — model weights are not bundled. Check the model card
   and the FunASR model license before redistribution.
+- **X-ASR Zipformer zh-en int8** — Android default ASR weights (derived from
+  https://github.com/Gilgamesh-J/X-ASR). Not bundled; check the upstream model
+  license before redistribution.
+- **AndroidX Media3** (ExoPlayer / Transformer / UI) — Apache-2.0. Android
+  playback and speed-changing export.
+- **JUnit 4** — Eclipse Public License 1.0. Android unit tests only.
 - **FFmpeg** — LGPL-2.1-or-later by default; some builds are GPL. This project
   invokes a user-provided `ffmpeg`/`ffprobe` binary and does not bundle it.
 - **auto-editor** — Unlicense. Research reference for the silence-speed-up

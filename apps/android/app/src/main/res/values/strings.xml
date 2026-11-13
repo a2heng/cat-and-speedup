@@ -1,6 +1,16 @@
 <resources>
-    <string name="app_name">cat-and-speedup</string>
-    <string name="status_hint">选择视频，或先导入 PC 生成的 transcript.json</string>
-    <string name="open_video">选择视频</string>
-    <string name="open_subtitles">导入字幕 JSON</string>
+    <string name="app_name">cat-speedup</string>
+    <string name="status_hint">加入视频 → 切分 → 转写 → 导出</string>
+    <string name="open_video">加入视频</string>
+    <string name="analyze">切分</string>
+    <string name="transcribe_local">转写</string>
+    <string name="export_video">导出视频</string>
+    <string name="export_subtitles">导出字幕</string>
+    <string name="follow_plan">跟随加速</string>
+    <string name="label_speed">静音倍速</string>
+    <string name="label_noise">判定阈值</string>
+    <string name="label_min_silence">最短静音</string>
+    <string name="label_margin">边界余量</string>
+    <string name="speed_state_idle">播放：1x 原速</string>
+    <string name="subtitle_hint">字幕（点一条跳到原片位置）</string>
 </resources>

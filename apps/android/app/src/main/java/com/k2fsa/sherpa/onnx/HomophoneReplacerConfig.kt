@@ -1,0 +1,10 @@
+// Vendored from sherpa-onnx v2.0.1 kotlin-api (Apache-2.0).
+// https://github.com/k2-fsa/sherpa-onnx
+
+package com.k2fsa.sherpa.onnx
+
+data class HomophoneReplacerConfig(
+    var dictDir: String = "", // unused
+    var lexicon: String = "",
+    var ruleFsts: String = "",
+)
