@@ -11,3 +11,6 @@ local.properties
 .gradle/
 
 *.apk
+
+# Bundled on-device models (~168 MB); run scripts/bundle-android-models.sh before packaging
+/apps/android/app/src/main/assets/models/

@@ -35,10 +35,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusView: TextView
     private lateinit var modelView: TextView
     private lateinit var speedStateView: TextView
-    private lateinit var currentSubtitleView: TextView
-    private lateinit var currentSubtitleCard: View
-    private lateinit var playToggle: MaterialButton
     private lateinit var analyzeButton: MaterialButton
+    private lateinit var seekOverlay: View
     private lateinit var timelineBar: TimelineBar
     private lateinit var positionText: TextView
     private lateinit var durationText: TextView
@@ -46,7 +44,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var subtitleCountView: TextView
     private lateinit var subtitleEmptyView: TextView
     private lateinit var paramsSummaryView: TextView
-    private lateinit var settingsPanel: View
+    private lateinit var settingsOverlay: View
     private lateinit var adapter: SubtitleAdapter
     private lateinit var offlineAsr: OfflineAsr
     private lateinit var videoExporter: VideoExporter
@@ -71,6 +69,10 @@ class MainActivity : AppCompatActivity() {
     private var userSeeking = false
     private var suppressingSliderCallback = false
     private var skippedSilenceStart = Long.MIN_VALUE
+    private var touchDownX = 0f
+    private var scrubStartMs = 0L
+    private var scrubTargetMs = 0L
+    private var scrubbing = false
     private var analyzing = false
     private var exporting = false
 
@@ -112,8 +114,6 @@ class MainActivity : AppCompatActivity() {
         skippedSilenceStart = Long.MIN_VALUE
         currentIndex = -1
         adapter.setItems(subtitles)
-        currentSubtitleView.text = ""
-        currentSubtitleCard.visibility = View.GONE
         speedStateView.text = getString(R.string.speed_state_idle)
 
         cachedDurationMs = AudioDecoder.durationMs(this, uri)
@@ -145,18 +145,16 @@ class MainActivity : AppCompatActivity() {
         statusView = findViewById(R.id.status)
         modelView = findViewById(R.id.model)
         speedStateView = findViewById(R.id.speed_state)
-        currentSubtitleView = findViewById(R.id.current_subtitle)
-        currentSubtitleCard = findViewById(R.id.current_subtitle_card)
-        playToggle = findViewById(R.id.play_toggle)
         analyzeButton = findViewById(R.id.analyze)
         positionText = findViewById(R.id.position_text)
         durationText = findViewById(R.id.duration_text)
+        seekOverlay = findViewById(R.id.seek_overlay)
         timelineBar = findViewById(R.id.timeline_bar)
         recyclerView = findViewById(R.id.subtitle_list)
         subtitleCountView = findViewById(R.id.subtitle_count)
         subtitleEmptyView = findViewById(R.id.subtitle_empty)
         paramsSummaryView = findViewById(R.id.params_summary)
-        settingsPanel = findViewById(R.id.settings_panel)
+        settingsOverlay = findViewById(R.id.settings_overlay)
         playerView = findViewById(R.id.player_view)
         silenceSpeedSlider = findViewById(R.id.silence_speed_slider)
         minGapSlider = findViewById(R.id.min_gap_slider)
@@ -167,6 +165,51 @@ class MainActivity : AppCompatActivity() {
 
         player = ExoPlayer.Builder(this).build()
         playerView.player = player
+
+        // Tap = play/pause. Swipe left/right anywhere on the video = scrub.
+        val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
+        playerView.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    touchDownX = event.x
+                    scrubStartMs = player.currentPosition
+                    scrubTargetMs = scrubStartMs
+                    scrubbing = false
+                    true
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    val dx = event.x - touchDownX
+                    if (!scrubbing && kotlin.math.abs(dx) > touchSlop) {
+                        scrubbing = true
+                        userSeeking = true
+                    }
+                    if (scrubbing) {
+                        val duration = player.duration.takeIf { it > 0 } ?: return@setOnTouchListener true
+                        // A full-width swipe covers ~60% of the video.
+                        scrubTargetMs = (scrubStartMs + dx / view.width * duration * 0.6f)
+                            .toLong()
+                            .coerceIn(0, duration)
+                        positionText.text = formatDuration(scrubTargetMs)
+                        timelineBar.positionMs = scrubTargetMs
+                        seekOverlay.visibility = View.VISIBLE
+                    }
+                    true
+                }
+                android.view.MotionEvent.ACTION_UP,
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    if (scrubbing) {
+                        player.seekTo(scrubTargetMs)
+                        userSeeking = false
+                        applyPlaybackSpeed(force = true)
+                        scrubbing = false
+                    } else if (event.actionMasked == android.view.MotionEvent.ACTION_UP) {
+                        togglePlayback()
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
         offlineAsr = OfflineAsr(applicationContext)
         videoExporter = VideoExporter(this)
         vad = VoiceActivityDetector(applicationContext)
@@ -188,6 +231,8 @@ class MainActivity : AppCompatActivity() {
             exportSubtitles()
         }
         findViewById<View>(R.id.settings_toggle).setOnClickListener { toggleSettings() }
+        findViewById<View>(R.id.settings_close).setOnClickListener { closeSettings() }
+        settingsOverlay.setOnClickListener { closeSettings() }
         paramsSummaryView.setOnClickListener { toggleSettings() }
         speedStateView.setOnClickListener {
             followPlan = !followPlan
@@ -196,8 +241,6 @@ class MainActivity : AppCompatActivity() {
         }
         speedStateView.contentDescription = getString(R.string.follow_toggle_desc)
 
-        playerView.setOnClickListener { togglePlayback() }
-        playToggle.setOnClickListener { togglePlayback() }
         timelineBar.onSeek = { position ->
             skippedSilenceStart = Long.MIN_VALUE
             player.seekTo(position)
@@ -229,7 +272,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun toggleSettings() {
         settingsExpanded = !settingsExpanded
-        settingsPanel.visibility = if (settingsExpanded) View.VISIBLE else View.GONE
+        settingsOverlay.visibility = if (settingsExpanded) View.VISIBLE else View.GONE
+        updateParamSummary()
+    }
+
+    private fun closeSettings() {
+        if (!settingsExpanded) return
+        settingsExpanded = false
+        settingsOverlay.visibility = View.GONE
         updateParamSummary()
     }
 
@@ -352,11 +402,6 @@ class MainActivity : AppCompatActivity() {
         val file = File(getExternalFilesDir(null), "ui-dump.png")
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         Log.i(TAG, "ui dump: ${file.absolutePath} ${root.width}x${root.height}")
-        Log.i(
-            TAG,
-            "current subtitle card: ${currentSubtitleCard.visibility} " +
-                "h=${currentSubtitleCard.height} text=${currentSubtitleView.text}",
-        )
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -472,6 +517,7 @@ class MainActivity : AppCompatActivity() {
             runCatching {
                 val duration = resolveDuration(uri)
                 cachedDurationMs = duration
+                require(duration > 0) { "无法读取视频时长" }
                 val transcript = transcribeAll(uri, duration) { doneMs, totalMs ->
                     val percent = if (totalMs > 0) (doneMs * 100 / totalMs).toInt() else 0
                     runOnUiThread { updateProgressPercent(percent) }
@@ -556,6 +602,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun resolveDuration(uri: Uri): Long = maxOf(
         cachedDurationMs,
+        runCatching { player.duration }.getOrDefault(0L),
         AudioDecoder.durationMs(this, uri),
     )
 
@@ -858,8 +905,6 @@ class MainActivity : AppCompatActivity() {
         if (index == currentIndex) return
 
         currentIndex = index
-        currentSubtitleCard.visibility = if (index >= 0) View.VISIBLE else View.GONE
-        currentSubtitleView.text = subtitles.getOrNull(index)?.text.orEmpty()
         adapter.setActiveIndex(index)
         if (index >= 0) {
             recyclerView.smoothScrollToPosition(index)
@@ -877,9 +922,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateProgressUi() {
-        val label = getString(if (player.isPlaying) R.string.pause else R.string.play)
-        if (playToggle.text.toString() != label) playToggle.text = label
-
         val duration = player.duration.takeIf { it > 0 } ?: 0L
         durationText.text = formatDuration(duration)
         positionText.text = formatDuration(player.currentPosition)

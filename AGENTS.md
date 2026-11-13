@@ -81,7 +81,7 @@
 - 桌面：`cargo run -p cut-speedup-desktop`（GPUI 原生窗口；默认离线，不需要 URL；第一次构建 GPUI 约 3 分钟）
 - Android：`cd apps/android && ./gradlew :app:assembleDebug`（先启用本机工具链，见全局 AGENTS.md / `env.sh`）。
 - Android 单测：`cd apps/android && ./gradlew :app:testDebugUnitTest`。
-- Android 资源：`bash scripts/fetch-sherpa-android.sh`（JNI 库，约 45 MB）；`bash scripts/fetch-asr-android-model.sh` + `bash scripts/push-asr-android.sh`（X-ASR 模型 + Silero VAD 推到手机）。
+- Android 资源：`bash scripts/fetch-sherpa-android.sh`（JNI 库，约 45 MB）；`bash scripts/fetch-asr-android-model.sh`（X-ASR + Silero VAD）。**模型必须打进 APK**：打包前跑 `bash scripts/bundle-android-models.sh`（复制到 `app/src/main/assets/models`，gitignore），APK 约 210 MB；`scripts/push-asr-android.sh` 只用于不重打包时覆盖 `files/models`。
 - Android 算法调试（PC）：`python scripts/debug/asr_plan_debug.py 视频.mp4 --gap 1 --margin 150 --speed 8`，走同一份 VAD+ASR 模型并输出切段对比。
 - VAD 大块喂入丢音频复现（PC）：`LD_LIBRARY_PATH=tools/sherpa-onnx-v2.0.1-linux-x64-shared-no-tts/lib python3 scripts/debug/vad_chunk_probe.py 视频.mp4 --lib tools/sherpa-onnx-v2.0.1-linux-x64-shared-no-tts/lib`（30 s 块 → 第一段人声从 ~29.7 s 开始；0.1 s 块 → ~1.0 s）。
 - Android 日志：`adb logcat -s CutSpeedup`。

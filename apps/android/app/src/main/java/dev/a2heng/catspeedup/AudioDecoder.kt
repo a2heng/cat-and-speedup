@@ -14,7 +14,17 @@ object AudioDecoder {
     fun durationMs(context: Context, uri: Uri): Long {
         val retriever = MediaMetadataRetriever()
         return try {
-            retriever.setDataSource(context, uri)
+            // SAF `content://` URIs often have no grant for the plain
+            // `setDataSource(context, uri)` path (status 0xFFFFFFEA); the file
+            // descriptor route works for the same URI and matches decodeMono.
+            runCatching {
+                context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
+                    retriever.setDataSource(descriptor.fileDescriptor)
+                } ?: retriever.setDataSource(context, uri)
+            }.onFailure {
+                Log.w(TAG, "fd duration probe failed, retrying uri", it)
+                retriever.setDataSource(context, uri)
+            }
             retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                 ?.toLongOrNull() ?: 0L
         } catch (error: Throwable) {

@@ -1,463 +1,471 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
-    android:orientation="vertical">
+    android:background="?attr/colorSurface">
 
     <LinearLayout
+        android:id="@+id/main_column"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingTop="10dp"
-        android:paddingEnd="16dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
-            android:text="@string/app_name"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="18sp" />
-
-        <TextView
-            android:id="@+id/model"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:gravity="end"
-            android:maxLines="1"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="10sp" />
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:paddingStart="16dp"
-        android:paddingTop="2dp"
-        android:paddingEnd="16dp"
-        android:text="@string/status_hint"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:textSize="12sp" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingStart="10dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="10dp">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/open_video"
-            style="@style/Widget.CutSpeedup.PrimaryButton"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
-            android:layout_weight="1"
-            android:text="@string/open_video" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/analyze"
-            style="@style/Widget.CutSpeedup.ActionButton"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
-            android:layout_weight="1"
-            android:text="@string/analyze" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/export_video"
-            style="@style/Widget.CutSpeedup.ActionButton"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
-            android:layout_weight="1"
-            android:text="@string/export_video" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/export_subtitles"
-            style="@style/Widget.CutSpeedup.ActionButton"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
-            android:layout_weight="1"
-            android:text="@string/export_subtitles" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingTop="4dp"
-        android:paddingEnd="10dp">
-
-        <TextView
-            android:id="@+id/params_summary"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="11sp" />
-
-        <TextView
-            android:id="@+id/settings_toggle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:paddingStart="8dp"
-            android:paddingTop="6dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="6dp"
-            android:text="@string/adjust"
-            android:textColor="?attr/colorPrimary"
-            android:textSize="11sp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/settings_panel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="16dp"
-        android:paddingTop="2dp"
-        android:paddingEnd="16dp"
-        android:visibility="gone">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingTop="6dp">
+            android:paddingStart="16dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="16dp">
 
             <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/speed_desc"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/speed_value_label"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
-                android:text="10×"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <com.google.android.material.slider.Slider
-            android:id="@+id/silence_speed_slider"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:stepSize="1"
-            android:value="10"
-            android:valueFrom="2"
-            android:valueTo="20"
-            app:thumbHeight="14dp"
-            app:thumbWidth="4dp"
-            app:tickVisible="false"
-            app:trackStopIndicatorSize="0dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+                android:text="@string/app_name"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="18sp" />
 
             <TextView
+                android:id="@+id/model"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
                 android:layout_weight="1"
-                android:text="@string/gap_desc"
+                android:ellipsize="end"
+                android:gravity="end"
+                android:maxLines="1"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/gap_value_label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
-                android:text="5 秒"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="12sp" />
+                android:textSize="10sp" />
         </LinearLayout>
-
-        <com.google.android.material.slider.Slider
-            android:id="@+id/min_gap_slider"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:stepSize="1"
-            android:value="5"
-            android:valueFrom="1"
-            android:valueTo="30"
-            app:thumbHeight="14dp"
-            app:thumbWidth="4dp"
-            app:tickVisible="false"
-            app:trackStopIndicatorSize="0dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/margin_desc"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/margin_value_label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
-                android:text="150 毫秒"
-                android:textColor="?attr/colorPrimary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <com.google.android.material.slider.Slider
-            android:id="@+id/margin_slider"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:stepSize="25"
-            android:value="150"
-            android:valueFrom="0"
-            android:valueTo="400"
-            app:thumbHeight="14dp"
-            app:thumbWidth="4dp"
-            app:tickVisible="false"
-            app:trackStopIndicatorSize="0dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/reset_defaults"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:text="@string/reset_defaults"
-            android:textSize="12sp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingTop="6dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="2dp">
 
         <com.google.android.material.card.MaterialCardView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:cardBackgroundColor="?attr/colorPrimaryContainer"
-            app:cardCornerRadius="8dp"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="12dp"
+            android:layout_weight="3"
+            app:cardBackgroundColor="#000000"
+            app:cardCornerRadius="14dp"
             app:cardElevation="0dp"
-            app:strokeWidth="0dp">
+            app:strokeColor="@color/outline"
+            app:strokeWidth="1dp">
 
-            <TextView
-                android:id="@+id/speed_state"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingStart="10dp"
-                android:paddingTop="4dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="4dp"
-                android:text="@string/speed_state_idle"
-                android:textColor="?attr/colorOnPrimaryContainer"
-                android:textSize="11sp" />
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <androidx.media3.ui.PlayerView
+                    android:id="@+id/player_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    app:use_controller="false" />
+
+                <TextView
+                    android:id="@+id/speed_state"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="10dp"
+                    android:background="@drawable/bg_speed_badge"
+                    android:paddingStart="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="3dp"
+                    android:text="@string/speed_state_idle"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp" />
+            </FrameLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/play_toggle"
-            style="@style/Widget.CutSpeedup.ActionButton"
-            android:layout_width="58dp"
-            android:layout_height="32dp"
-            android:layout_marginStart="8dp"
-            android:minHeight="32dp"
-            android:text="@string/pause"
-            android:textSize="10sp" />
-    </LinearLayout>
-
-    <com.google.android.material.card.MaterialCardView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginStart="12dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginEnd="12dp"
-        android:layout_weight="3"
-        app:cardBackgroundColor="#000000"
-        app:cardCornerRadius="14dp"
-        app:cardElevation="0dp"
-        app:strokeColor="@color/outline"
-        app:strokeWidth="1dp">
-
-        <androidx.media3.ui.PlayerView
-            android:id="@+id/player_view"
+        <LinearLayout
+            android:id="@+id/seek_overlay"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            app:use_controller="false" />
-    </com.google.android.material.card.MaterialCardView>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="14dp"
-        android:paddingTop="2dp"
-        android:paddingEnd="14dp">
-
-        <TextView
-            android:id="@+id/position_text"
-            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:text="00:00"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="10sp" />
-
-        <dev.a2heng.catspeedup.TimelineBar
-            android:id="@+id/timeline_bar"
-            android:layout_width="0dp"
-            android:layout_height="30dp"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            android:layout_weight="1" />
-
-        <TextView
-            android:id="@+id/duration_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:text="00:00"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="10sp" />
-    </LinearLayout>
-
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/current_subtitle_card"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginEnd="12dp"
-        android:visibility="gone"
-        app:cardBackgroundColor="?attr/colorSecondaryContainer"
-        app:cardCornerRadius="14dp"
-        app:cardElevation="0dp"
-        app:strokeWidth="0dp">
-
-        <TextView
-            android:id="@+id/current_subtitle"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:ellipsize="end"
-            android:maxLines="2"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
             android:paddingStart="14dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="14dp"
-            android:paddingBottom="8dp"
-            android:textColor="?attr/colorOnSecondaryContainer"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            app:autoSizeMaxTextSize="16sp"
-            app:autoSizeMinTextSize="10sp"
-            app:autoSizeStepGranularity="1sp"
-            app:autoSizeTextType="uniform" />
-    </com.google.android.material.card.MaterialCardView>
+            android:paddingTop="4dp"
+            android:paddingEnd="14dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingTop="10dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="4dp">
+            <TextView
+                android:id="@+id/position_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:text="00:00"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp" />
+
+            <dev.a2heng.catspeedup.TimelineBar
+                android:id="@+id/timeline_bar"
+                android:layout_width="0dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/duration_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:text="00:00"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp" />
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/subtitle_header"
-            android:layout_width="wrap_content"
+            android:id="@+id/status"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-medium"
-            android:text="@string/subtitle_header"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="12sp" />
-
-        <TextView
-            android:id="@+id/subtitle_count"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1"
+            android:paddingStart="16dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="16dp"
+            android:text="@string/status_hint"
             android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="11sp" />
+            android:textSize="12sp" />
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/subtitle_hint"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="10sp" />
+            android:paddingStart="6dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="6dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/open_video"
+                style="@style/Widget.CutSpeedup.PrimaryButton"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:layout_weight="1"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:text="@string/open_video"
+                android:textSize="11sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/analyze"
+                style="@style/Widget.CutSpeedup.ActionButton"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:layout_weight="1"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:text="@string/analyze"
+                android:textSize="11sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/export_video"
+                style="@style/Widget.CutSpeedup.ActionButton"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:layout_weight="1"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:text="@string/export_video"
+                android:textSize="11sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/export_subtitles"
+                style="@style/Widget.CutSpeedup.ActionButton"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:layout_weight="1"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:text="@string/export_subtitles"
+                android:textSize="11sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/settings_toggle"
+                style="@style/Widget.CutSpeedup.ActionButton"
+                android:layout_width="0dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:layout_weight="1"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:text="@string/adjust"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="10dp">
+
+            <TextView
+                android:id="@+id/params_summary"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:id="@+id/subtitle_header"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/subtitle_header"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/subtitle_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="11sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_hint"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="2">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/subtitle_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingTop="2dp"
+                android:paddingBottom="12dp"
+                android:scrollbars="none" />
+
+            <TextView
+                android:id="@+id/subtitle_empty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="@string/subtitle_empty"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp" />
+        </FrameLayout>
     </LinearLayout>
 
     <FrameLayout
+        android:id="@+id/settings_overlay"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="2">
+        android:layout_height="match_parent"
+        android:background="#99000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/subtitle_list"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/settings_panel"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingTop="2dp"
-            android:paddingBottom="12dp"
-            android:scrollbars="none" />
-
-        <TextView
-            android:id="@+id/subtitle_empty"
-            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="@string/subtitle_empty"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:textSize="12sp" />
-    </FrameLayout>
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:cardCornerRadius="18dp"
+            app:cardElevation="12dp"
+            android:clickable="true"
+            android:focusable="true">
 
-</LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="18dp"
+                android:paddingTop="14dp"
+                android:paddingEnd="18dp"
+                android:paddingBottom="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="@string/settings_title"
+                        android:textColor="?attr/colorOnSurface"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/settings_close"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="8dp"
+                        android:text="@string/done"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingTop="6dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/speed_desc"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/speed_value_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="10×"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/silence_speed_slider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="1"
+                    android:value="10"
+                    android:valueFrom="2"
+                    android:valueTo="20"
+                    app:thumbHeight="14dp"
+                    app:thumbWidth="4dp"
+                    app:tickVisible="false"
+                    app:trackStopIndicatorSize="0dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/gap_desc"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/gap_value_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="5 秒"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/min_gap_slider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="1"
+                    android:value="5"
+                    android:valueFrom="1"
+                    android:valueTo="30"
+                    app:thumbHeight="14dp"
+                    app:thumbWidth="4dp"
+                    app:tickVisible="false"
+                    app:trackStopIndicatorSize="0dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/margin_desc"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/margin_value_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="150 毫秒"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/margin_slider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="25"
+                    android:value="150"
+                    android:valueFrom="0"
+                    android:valueTo="400"
+                    app:thumbHeight="14dp"
+                    app:thumbWidth="4dp"
+                    app:tickVisible="false"
+                    app:trackStopIndicatorSize="0dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/reset_defaults"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:text="@string/reset_defaults"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </FrameLayout>
+</FrameLayout>

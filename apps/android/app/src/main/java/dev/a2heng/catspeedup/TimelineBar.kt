@@ -3,7 +3,6 @@ package dev.a2heng.catspeedup
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
@@ -46,18 +45,13 @@ class TimelineBar @JvmOverloads constructor(
         private set
 
     private val density = resources.displayMetrics.density
-    private val barHeight = dp(6f)
-    private val thumbRadius = dp(6f)
-    private val thumbRing = dp(1.5f)
+    private val barHeight = dp(5f)
+    private val barRadius = dp(2f)
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val trackRect = RectF()
-    private val clipPath = Path()
-    private val trackColor = ContextCompat.getColor(context, R.color.timeline_track)
-    private val voiceColor = ContextCompat.getColor(context, R.color.timeline_voice)
-    private val silenceColor = ContextCompat.getColor(context, R.color.timeline_silence)
-    private val thumbColor = ContextCompat.getColor(context, R.color.timeline_thumb)
-    private val thumbRingColor = ContextCompat.getColor(context, R.color.timeline_thumb_ring)
+    private val playedColor = ContextCompat.getColor(context, R.color.timeline_played)
+    private val remainingColor = ContextCompat.getColor(context, R.color.timeline_remaining)
 
     init {
         isClickable = true
@@ -73,34 +67,18 @@ class TimelineBar @JvmOverloads constructor(
         val top = height / 2f - barHeight / 2f
         trackRect.set(left, top, right, top + barHeight)
 
-        paint.color = trackColor
-        canvas.drawRoundRect(trackRect, barHeight / 2f, barHeight / 2f, paint)
-
-        plan?.let { playbackPlan ->
-            canvas.save()
-            clipPath.reset()
-            clipPath.addRoundRect(
-                trackRect,
-                barHeight / 2f,
-                barHeight / 2f,
-                Path.Direction.CW,
-            )
-            canvas.clipPath(clipPath)
-            for (segment in playbackPlan.segments) {
-                val start = left + (right - left) * segment.startMs / total.toFloat()
-                val end = left + (right - left) * segment.endMs / total.toFloat()
-                paint.color = if (segment.isVoice) voiceColor else silenceColor
-                canvas.drawRect(start, top, end, top + barHeight, paint)
-            }
-            canvas.restore()
-        }
+        // Unplayed: dim, played: bright. Plain rectangle, no thumb.
+        paint.color = remainingColor
+        canvas.drawRoundRect(trackRect, barRadius, barRadius, paint)
 
         val x = left + (right - left) * positionMs.coerceIn(0, total) / total.toFloat()
-        val centerY = height / 2f
-        paint.color = thumbRingColor
-        canvas.drawCircle(x, centerY, thumbRadius + thumbRing, paint)
-        paint.color = thumbColor
-        canvas.drawCircle(x, centerY, thumbRadius, paint)
+        if (x > left) {
+            canvas.save()
+            canvas.clipRect(left, top, x, top + barHeight)
+            paint.color = playedColor
+            canvas.drawRoundRect(trackRect, barRadius, barRadius, paint)
+            canvas.restore()
+        }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

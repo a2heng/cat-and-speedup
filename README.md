@@ -132,16 +132,21 @@ cargo run -p cut-speedup -- transcribe input.mp4 --engine sherpa --sherpa-kind p
 
 ## Android
 
+模型**打进 APK**（X-ASR Zipformer + Silero VAD，约 168 MB），装完即可离线转写，不需要再往手机推模型：
+
 ```bash
-# 一次性：拉 sherpa-onnx Android JNI + X-ASR + Silero VAD，再推到手机
+# 一次性：拉 sherpa-onnx Android JNI + X-ASR + Silero VAD
 bash scripts/fetch-sherpa-android.sh
 bash scripts/fetch-asr-android-model.sh
-bash scripts/push-asr-android.sh
+# 把模型复制到 app/src/main/assets/models（gitignore，打包前必跑）
+bash scripts/bundle-android-models.sh
 
 cd apps/android
-source /d/AndroidDevToolchain/env.sh   # 本机工具链，见全局 AGENTS.md
-./gradlew :app:assembleDebug   # app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:assembleDebug   # app/build/outputs/apk/debug/app-debug.apk（约 210 MB）
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+`scripts/push-asr-android.sh` 仍保留：把模型推到 `files/models/` 可以覆盖 APK 内置版本，方便不重新打包就换模型。
 
 界面流程：加入视频 → 转写并切分（Silero VAD 定句头句尾，ASR 只跑人声段并缓存）→ 调参后“重新切分”（只重排，不重新转写）→ 导出视频 / 导出字幕。
 默认：人声 1x、停顿 10x、停顿 ≥5 秒才加速、人声前后留白 150ms；参数持久化，“恢复默认”有确认提示。

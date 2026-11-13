@@ -30,5 +30,7 @@
     <color name="timeline_voice">#2F6FED</color>
     <color name="timeline_silence">#00A896</color>
     <color name="timeline_thumb">#1A1C1F</color>
+    <color name="timeline_played">#7FB2FF</color>
+    <color name="timeline_remaining">#40FFFFFF</color>
     <color name="timeline_thumb_ring">#FBFBFF</color>
 </resources>
