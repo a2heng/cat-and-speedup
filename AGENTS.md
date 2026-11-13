@@ -40,6 +40,8 @@
 - Android 长视频禁止整片进内存：解码流式，ASR 按 30 s 分块；音频多声道按“最大幅值”混单声道，避免相位抵消把语音判成静音。
 - Android 的切分信源是 **VAD + ASR**：Silero VAD 给出精确句头/句尾，ASR 只在 VAD 人声段上跑并生成字幕；没有 VAD 模型才退回 token 时间戳。默认参数：人声 1x、停顿 8x、停顿 ≥5 s 才加速、人声前后留白 150 ms；参数持久化，“恢复默认”必须弹确认。
 - Android 转写结果按视频 URI 缓存（内部 `files/transcripts/<sha1>.json`），调参、重启都不再转写。
+- Android 首屏顺序（2026-11-13 定）：视频 → 进度条 → 状态文字 → 按钮（加入视频/转写并切分/导出视频/导出字幕/**设置**）→ 参数摘要 → 字幕列表。进度条在视频下方、纯矩形、**无 thumb**，已播放亮 `#7FB2FF`、未播放暗 `#40FFFFFF`；「设置」是居中的**悬浮卡片**（点遮罩或完成关闭）；倍速提示是视频右下角徽标；视频区域左右滑动 = 前进/后退，单击 = 播放/暂停（没有播放按钮）。
+- Android 模型必须打进 APK（`scripts/bundle-android-models.sh` → `assets/models`，约 168 MB），不能依赖 adb push；`files/models` 只作覆盖用。
 - Android 日志统一 tag `CutSpeedup`（`adb logcat -s CutSpeedup`）：切分参数与片段、ASR 分块耗时、每次变速点、导出进度/编码结果都打印。
 
 ## 必须避开的坑
