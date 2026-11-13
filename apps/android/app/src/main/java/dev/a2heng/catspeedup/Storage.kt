@@ -57,11 +57,19 @@ object TranscriptStore {
         return File(dir(context), "$digest.json")
     }
 
+    /** Bump when the planning model changes; old caches must not be reused. */
+    private const val CACHE_VERSION = 2
+
     fun load(context: Context, uri: Uri): CachedTranscript? {
         val file = file(context, uri)
         if (!file.isFile) return null
         return runCatching {
             val root = JSONObject(file.readText())
+            if (root.optInt("version", 0) != CACHE_VERSION) {
+                Log.i(TAG, "ignoring old transcript cache: ${file.name}")
+                file.delete()
+                return null
+            }
             val duration = root.optLong("duration_ms", 0)
             val array = root.getJSONArray("segments")
             val subtitles = ArrayList<Subtitle>(array.length())
@@ -112,6 +120,7 @@ object TranscriptStore {
                 speechArray.put(JSONArray().put(range.first).put(range.last))
             }
             val root = JSONObject()
+                .put("version", CACHE_VERSION)
                 .put("duration_ms", durationMs)
                 .put("segments", array)
                 .put("speech", speechArray)
