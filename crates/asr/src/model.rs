@@ -33,7 +33,7 @@ impl ModelSpec {
 pub fn resolve_model(value: Option<&str>) -> ModelSpec {
     let value = value
         .map(str::to_owned)
-        .or_else(|| env::var("CAT_SPEEDUP_MODEL").ok())
+        .or_else(|| env::var("CUT_SPEEDUP_MODEL").ok())
         .unwrap_or_else(|| DEFAULT_MODEL.to_string());
 
     if value.contains('/') || value.contains('\\') || value.ends_with(".bin") {
@@ -44,7 +44,7 @@ pub fn resolve_model(value: Option<&str>) -> ModelSpec {
 }
 
 fn model_dir() -> PathBuf {
-    env::var_os("CAT_SPEEDUP_MODEL_DIR")
+    env::var_os("CUT_SPEEDUP_MODEL_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("models"))
 }

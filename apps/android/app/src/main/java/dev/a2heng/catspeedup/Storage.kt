@@ -10,7 +10,7 @@ import java.security.MessageDigest
 
 /** Persisted plan parameters, so reopening the app keeps the last tuning. */
 object AppPrefs {
-    private const val NAME = "cat-speedup"
+    private const val NAME = "cut-speedup"
     private const val KEY_SPEED = "silence_speed"
     private const val KEY_GAP = "min_gap_ms"
     private const val KEY_MARGIN = "margin_ms"

@@ -1,4 +1,4 @@
-use cat_speedup_core::{Transcript, TranscriptSegment};
+use cut_speedup_core::{Transcript, TranscriptSegment};
 
 /// Split ASR output into readable subtitle lines and distribute the original
 /// segment duration by character count. Whisper often returns one long segment

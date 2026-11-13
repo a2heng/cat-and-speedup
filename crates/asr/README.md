@@ -1,4 +1,4 @@
-# cat-speedup-asr
+# cut-speedup-asr
 
 ASR 后端抽象。当前只有 whisper.cpp（`whisper` feature，默认开启）。
 
@@ -17,7 +17,7 @@ pub trait AsrEngine {
 ```
 
 - 输入必须是 16 kHz / 16-bit / 单声道 WAV；`prepare-asr` 已按这个格式输出。
-- 输出 `Transcript` 使用**紧凑音频时间轴**，再由 `cat-speedup map-transcript` 映射回原片。
+- 输出 `Transcript` 使用**紧凑音频时间轴**，再由 `cut-speedup map-transcript` 映射回原片。
 - `AsrOptions.device`：`Auto` / `Cpu` / `Gpu`。只有编译时启用 `gpu-vulkan` 或 `gpu-cuda`，`Auto` 才可能真正走 GPU。
 - 新后端只需实现 trait，然后在 CLI 的 `--engine` 分支里注册；不需要改 core。
 
@@ -37,18 +37,18 @@ HTTP 后端请求 `response_format=verbose_json` 和 `timestamp_granularities[]=
 
 ```bash
 source scripts/env.sh
-cargo build -p cat-speedup
+cargo build -p cut-speedup
 ```
 
 GPU（可选）：
 
 ```bash
-cargo build -p cat-speedup --features gpu-vulkan   # 需要 Vulkan SDK
-cargo build -p cat-speedup --features gpu-cuda     # 需要 CUDA Toolkit
+cargo build -p cut-speedup --features gpu-vulkan   # 需要 Vulkan SDK
+cargo build -p cut-speedup --features gpu-cuda     # 需要 CUDA Toolkit
 ```
 
 ## 模型
 
 默认从 `models/` 读取 `ggml-{size}.bin`，缺失时从 hf-mirror 下载（失败再试 huggingface.co）。中文建议 `small`；`base`/`tiny` 更快但错字更多。
 
-`CAT_SPEEDUP_MODEL_DIR` 可改模型目录；`CAT_SPEEDUP_MODEL` 可设默认模型。
+`CUT_SPEEDUP_MODEL_DIR` 可改模型目录；`CUT_SPEEDUP_MODEL` 可设默认模型。

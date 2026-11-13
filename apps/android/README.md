@@ -16,8 +16,8 @@
 - 字幕面板：原时间轴时间戳胶囊 + 正文的行式卡片，跟播高亮，点一条直接跳到原片位置；
   当前字幕固定两行高，超出自动缩小字号，不会把布局顶来顶去。
 - 导出视频：Media3 Transformer 整条一次变速重编码（`SpeedProvider` 按源时间给速度），
-  音画同步、保留源分辨率与帧率、变速不变调（Sonic），成片写到 `Movies/CatSpeedup/`。
-- 导出字幕：标准 SRT（`HH:MM:SS,mmm`），写到 `Download/CatSpeedup/`。
+  音画同步、保留源分辨率与帧率、变速不变调（Sonic），成片写到 `Movies/CutSpeedup/`。
+- 导出字幕：标准 SRT（`HH:MM:SS,mmm`），写到 `Download/CutSpeedup/`。
 - 没有模型时会退回响度阈值（`-30dB / 0.5s`）兜底，但界面上不再暴露这些参数。
 
 ## 工具链
@@ -61,10 +61,10 @@ bash scripts/push-asr-android.sh          # 推到已连接手机
 
 ## 日志
 
-统一 tag `CatSpeedup`：
+统一 tag `CutSpeedup`：
 
 ```bash
-adb logcat -s CatSpeedup
+adb logcat -s CutSpeedup
 ```
 
 会打印切分参数与每段边界、静音检测结果、ASR 分块和耗时、每次变速点（含源时间）、导出进度与编码结果。

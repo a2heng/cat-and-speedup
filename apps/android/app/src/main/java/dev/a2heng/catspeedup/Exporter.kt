@@ -156,7 +156,7 @@ class VideoExporter(private val context: Context) {
     private fun fileName(extension: String): String {
         val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US)
             .format(java.util.Date())
-        return "cat-speedup-$stamp.$extension"
+        return "cut-speedup-$stamp.$extension"
     }
 
     private fun ExportException.errorCodeName(): String =
@@ -179,7 +179,7 @@ object ExportStore {
                 put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
                 put(
                     MediaStore.Video.Media.RELATIVE_PATH,
-                    "${Environment.DIRECTORY_MOVIES}/CatSpeedup",
+                    "${Environment.DIRECTORY_MOVIES}/CutSpeedup",
                 )
                 put(MediaStore.Video.Media.IS_PENDING, 1)
             }
@@ -197,11 +197,11 @@ object ExportStore {
                 resolver.delete(uri, null, null)
                 throw error
             }
-            return "Movies/CatSpeedup/$displayName"
+            return "Movies/CutSpeedup/$displayName"
         }
         val dir = File(
             context.getExternalFilesDir(Environment.DIRECTORY_MOVIES) ?: context.filesDir,
-            "CatSpeedup",
+            "CutSpeedup",
         ).apply { mkdirs() }
         val target = File(dir, displayName)
         temp.copyTo(target, overwrite = true)
@@ -213,7 +213,7 @@ object ExportStore {
             val values = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, displayName)
                 put(MediaStore.Downloads.MIME_TYPE, "application/x-subrip")
-                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/CatSpeedup")
+                put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/CutSpeedup")
             }
             val resolver = context.contentResolver
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
@@ -226,11 +226,11 @@ object ExportStore {
                 resolver.delete(uri, null, null)
                 throw error
             }
-            return "Download/CatSpeedup/$displayName"
+            return "Download/CutSpeedup/$displayName"
         }
         val dir = File(
             context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir,
-            "CatSpeedup",
+            "CutSpeedup",
         ).apply { mkdirs() }
         val target = File(dir, displayName)
         target.writeText(text)

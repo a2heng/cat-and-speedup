@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">cat-speedup</string>
+    <string name="app_name">cut-speedup</string>
     <string name="status_hint">加入视频 → 切分（只转写一次）→ 调参 → 导出</string>
     <string name="open_video">加入视频</string>
     <string name="analyze">转写并切分</string>

@@ -5,10 +5,10 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
-use cat_speedup_asr::{
+use cut_speedup_asr::{
     AsrEngine, AsrOptions as EngineAsrOptions, DevicePolicy, SherpaEngine, SherpaModelKind,
 };
-use cat_speedup_core::{
+use cut_speedup_core::{
     Ffmpeg, MediaInfo, Plan, RenderOptions, RenderReport, SegmentKind, Transcript, build_plan,
     ffmpeg::AsrOptions as CoreAsrOptions, map_transcript,
 };
@@ -226,7 +226,7 @@ impl Render for AppState {
                 div()
                     .text_lg()
                     .font_weight(gpui::FontWeight::BOLD)
-                    .child("cat-and-speedup"),
+                    .child("cut-speedup"),
             )
             .child(div().flex_1())
             .child(action_button(
@@ -523,7 +523,7 @@ fn make_plan(ffmpeg: &Ffmpeg, input: &Path, info: &MediaInfo) -> Result<Plan> {
 
 fn extract_poster(input: &Path, at_ms: u64) -> Result<Arc<Path>> {
     let ffmpeg = Ffmpeg::discover()?;
-    let dir = std::env::temp_dir().join("cat-speedup-ui");
+    let dir = std::env::temp_dir().join("cut-speedup-ui");
     std::fs::create_dir_all(&dir)?;
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)

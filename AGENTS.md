@@ -1,4 +1,4 @@
-# cat-and-speedup
+# cut-speedup
 
 2026-11-13 创建的空仓库：未 `git init`，无代码、构建脚本、CI。别假设 `cargo`/`gradlew` 已可用。
 
@@ -29,8 +29,9 @@
 
 - `crates/core`（Rust，无 UI）：阈值检测 → 有序 `Segment { start_ms, end_ms, speed }` 计划 → ffmpeg 分段渲染/拼接；同时产出 ASR 语音段 + 时间映射 + 原时间轴 `Transcript`。
 - `crates/asr`：`AsrEngine` trait。默认 **sherpa-onnx + Fun-ASR-Nano-2512 int8**，完全离线；`whisper` 是可选 feature；OpenAI 兼容 HTTP 只用于内部调试。运行时在 `tools/sherpa-onnx`、模型在 `models/sherpa-onnx-funasr-nano-int8-2025-12-30`（均 gitignore）。
-- `crates/cli`：`cat-speedup` 命令（doctor/analyze/render/prepare-asr/transcribe/map-transcript）。桌面和 Android 都复用 core。
+- `crates/cli`：`cut-speedup` 命令（doctor/analyze/render/prepare-asr/transcribe/map-transcript）。桌面和 Android 都复用 core。
 - `apps/desktop`：GPUI 桌面壳；文件选择、分析、FunASR 转写、字幕点击跳帧、出片。当前是帧预览，不是连续播放器。
+- `apps/web`：axum Web 端（固定端口 42006）。视频库浏览 + HTTP Range 播放；VAD+ASR（Linux 走 `sherpa-onnx-vad-with-offline-asr` CLI，与手机同模型）或响度阈值两种分析；字幕跳转；导出用**单遍 `filter_complex`**（trim/atempo/concat 一次编码），任务进度按 ffmpeg `-progress` 的 `out_time_us` 算。
 - `apps/android`：原生 Kotlin（XML + AppCompat，不是 Compose）播放器壳，Media3 播放；设备端 **ASR-first**：转写和切分合并为一个按钮（首次“转写并切分”，之后“重新切分”），转写一次并缓存 transcript，用 token 时间戳生成有序片段计划；参数是滑块（静音速度（2–8x）/ 最短加速间隙 / 留白），改参数只重排计划；Media3 Transformer 变速导出视频，导出 SRT。不接入 Cargo workspace。
 - 桌面和 Android 首屏都要有“视频 + 字幕面板”：字幕跟播高亮、点击跳转，作为快速看内容和编排的主界面；成片渲染放在其后。
 - 桌面 v1 已落地（帧预览 + 字幕跳帧）；Android 端已落地切分/转写/加速播放/导出，桌面连续播放待做。
@@ -39,7 +40,7 @@
 - Android 长视频禁止整片进内存：解码流式，ASR 按 30 s 分块；音频多声道按“最大幅值”混单声道，避免相位抵消把语音判成静音。
 - Android 的切分信源是 **VAD + ASR**：Silero VAD 给出精确句头/句尾，ASR 只在 VAD 人声段上跑并生成字幕；没有 VAD 模型才退回 token 时间戳。默认参数：人声 1x、停顿 8x、停顿 ≥5 s 才加速、人声前后留白 150 ms；参数持久化，“恢复默认”必须弹确认。
 - Android 转写结果按视频 URI 缓存（内部 `files/transcripts/<sha1>.json`），调参、重启都不再转写。
-- Android 日志统一 tag `CatSpeedup`（`adb logcat -s CatSpeedup`）：切分参数与片段、ASR 分块耗时、每次变速点、导出进度/编码结果都打印。
+- Android 日志统一 tag `CutSpeedup`（`adb logcat -s CutSpeedup`）：切分参数与片段、ASR 分块耗时、每次变速点、导出进度/编码结果都打印。
 
 ## 必须避开的坑
 
@@ -51,6 +52,8 @@
 - 默认构建**不需要** CMake/libclang；只有显式启用 `--features whisper` 才需要 `source scripts/env.sh`。不要在 Windows 上设 `WHISPER_DONT_GENERATE_BINDINGS=1`，仓库自带 bindings 是 Linux 结构体尺寸，会直接编不过。
 - `--device auto` 只对 whisper 的 GPU feature 有意义；默认 sherpa 是 CPU。CPU-only 构建必须如实显示 CPU，不能因为 `use_gpu(true)` 成功就报 GPU。
 - Android：ffmpeg-kit 2025-01 已退役，用维护中的 fork 或 MediaCodec/Media3；native .so 必须支持 16KB page size（2025-11-01 起 Play 要求）；SAF `content://` 不能直接喂 ffmpeg，先复制到 cache。
+- **喂 Silero VAD 必须小于 1 秒切片**：sherpa-onnx 环形缓冲只有 `maxSpeechDuration × 16k`（默认 30 s）。整段 30 s 一次 `acceptWaveform` 会溢出并丢掉开头，表现就是长视频前 30–36 s 被判成静音并加速（2026-11-13 在 `record-33min.mp4` 上复现：30 s 一块时第一段人声从 29.72 s 才开始，0.1 s 一块时从 1.02 s 开始）。Android 用 `VAD_FEED_SAMPLES=1600`（100 ms）；PC 复现 `scripts/debug/vad_chunk_probe.py`。
+- Web 导出**不要**沿用 CLI 的“逐段 ffmpeg 再 concat”（长视频几百段会很慢、临时文件多）；用一片 `filter_complex_script` 一次 trim/atempo/concat，`-progress pipe:1` 读 `out_time_us`。
 
 ## ASR 路线（2026-11）
 
@@ -69,22 +72,25 @@
 ## 命令
 
 - 默认构建不需要 CMake/libclang；只有 `--features whisper` 或 GPU whisper 才需要 `source scripts/env.sh`。
-- 本机没有全局 `ffmpeg`。代码会优先找 `tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe`；其他机器设 `CAT_SPEEDUP_FFMPEG` 或把 `ffmpeg`/`ffprobe` 放进 PATH。
+- Windows 没全局 `ffmpeg` 时，代码优先找 `tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe`；Linux/macOS 走 PATH（本机 `/usr/bin/ffmpeg`）。任何平台都可用 `CUT_SPEEDUP_FFMPEG` 覆盖。
+- Web：`bash scripts/web.sh`（或 `cargo run -p cut-speedup-web -- --port 42006`），浏览器开 `http://192.168.0.105:42006`。VAD 模式在 Linux 需要 `bash scripts/fetch-sherpa-linux.sh`（Windows 用 `tools/sherpa-onnx/...` 的 `.exe`）。
+- Web 单测：`cargo test -p cut-speedup-web`。桌面不在 default-members，单独 `cargo check -p cut-speedup-desktop`。
 - 下载本地 ASR 运行时 + 模型：`bash scripts/fetch-asr.sh`（sherpa-onnx Windows + Fun-ASR-Nano int8，约 1 GB，gitignore）。
-- 检查：`cargo run -p cat-speedup -- doctor`（应显示 sherpa 路径和 funasr 模型目录）
-- 单测：`cargo test --workspace`；静态检查：`cargo clippy --workspace --all-targets -- -D warnings`。注意 `default-members` 不含 `apps/desktop`，桌面单独 `cargo check -p cat-speedup-desktop`。
-- 桌面：`cargo run -p cat-speedup-desktop`（GPUI 原生窗口；默认离线，不需要 URL；第一次构建 GPUI 约 3 分钟）
+- 检查：`cargo run -p cut-speedup -- doctor`（应显示 sherpa 路径和 funasr 模型目录）
+- 单测：`cargo test`（default-members，不含 desktop/web 之外的壳）；`cargo test -p cut-speedup-web` 跑 Web。`--workspace` 会拉 GPUI 的 `xattr`，Linux 上当前编不过。静态检查：`cargo clippy --workspace --all-targets -- -D warnings`（同样受 desktop 限制）。
+- 桌面：`cargo run -p cut-speedup-desktop`（GPUI 原生窗口；默认离线，不需要 URL；第一次构建 GPUI 约 3 分钟）
 - Android：`cd apps/android && ./gradlew :app:assembleDebug`（先启用本机工具链，见全局 AGENTS.md / `env.sh`）。
 - Android 单测：`cd apps/android && ./gradlew :app:testDebugUnitTest`。
 - Android 资源：`bash scripts/fetch-sherpa-android.sh`（JNI 库，约 45 MB）；`bash scripts/fetch-asr-android-model.sh` + `bash scripts/push-asr-android.sh`（X-ASR 模型 + Silero VAD 推到手机）。
 - Android 算法调试（PC）：`python scripts/debug/asr_plan_debug.py 视频.mp4 --gap 1 --margin 150 --speed 8`，走同一份 VAD+ASR 模型并输出切段对比。
-- Android 日志：`adb logcat -s CatSpeedup`。
+- VAD 大块喂入丢音频复现（PC）：`LD_LIBRARY_PATH=tools/sherpa-onnx-v2.0.1-linux-x64-shared-no-tts/lib python3 scripts/debug/vad_chunk_probe.py 视频.mp4 --lib tools/sherpa-onnx-v2.0.1-linux-x64-shared-no-tts/lib`（30 s 块 → 第一段人声从 ~29.7 s 开始；0.1 s 块 → ~1.0 s）。
+- Android 日志：`adb logcat -s CutSpeedup`。
 - 端到端：`bash scripts/smoke.sh`（生成 6 秒合成视频，跑 analyze/render/prepare-asr/map-transcript）
-- 分析：`cargo run -p cat-speedup -- analyze in.mp4 --speed 4 --margin 0.15 -o plan.json`
-- 出片：`cargo run -p cat-speedup -- render in.mp4 out.mp4 --plan plan.json`
-- ASR 预缩短：`cargo run -p cat-speedup -- prepare-asr in.mp4 asr.wav --map asr-map.json`
-- 字幕（默认离线）：`cargo run -p cat-speedup -- transcribe in.mp4 --language zh -o transcript.json`（sherpa + Fun-ASR-Nano）
+- 分析：`cargo run -p cut-speedup -- analyze in.mp4 --speed 4 --margin 0.15 -o plan.json`
+- 出片：`cargo run -p cut-speedup -- render in.mp4 out.mp4 --plan plan.json`
+- ASR 预缩短：`cargo run -p cut-speedup -- prepare-asr in.mp4 asr.wav --map asr-map.json`
+- 字幕（默认离线）：`cargo run -p cut-speedup -- transcribe in.mp4 --language zh -o transcript.json`（sherpa + Fun-ASR-Nano）
 - 字幕（低配）：`--engine sherpa --sherpa-kind paraformer --sherpa-model-dir models/sherpa-onnx-paraformer-zh-int8-2025-10-07`
-- 字幕（whisper，可选）：`cargo run -p cat-speedup --features whisper -- transcribe in.mp4 --engine whisper --model small --language zh -o transcript.json`
+- 字幕（whisper，可选）：`cargo run -p cut-speedup --features whisper -- transcribe in.mp4 --engine whisper --model small --language zh -o transcript.json`
 - HTTP ASR（仅调试）：`--engine http --asr-url <url> --asr-model <service-model>`
-- 字幕回投：`cargo run -p cat-speedup -- map-transcript transcript.json asr-map.json -o transcript-original.json`
+- 字幕回投：`cargo run -p cut-speedup -- map-transcript transcript.json asr-map.json -o transcript-original.json`

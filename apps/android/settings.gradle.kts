@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "cat-and-speedup"
+rootProject.name = "cut-speedup"
 include(":app")

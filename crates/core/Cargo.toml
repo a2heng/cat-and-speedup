@@ -1,5 +1,5 @@
 [package]
-name = "cat-speedup-core"
+name = "cut-speedup-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

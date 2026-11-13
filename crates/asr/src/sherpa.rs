@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use cat_speedup_core::{Transcript, TranscriptSegment};
+use cut_speedup_core::{Transcript, TranscriptSegment};
 use serde::Deserialize;
 
 use crate::{AsrEngine, AsrError, AsrOptions, AsrResult, split_long_segments};
@@ -65,12 +65,12 @@ impl SherpaEngine {
     /// Resolve the local sherpa-onnx runtime and model directory.
     ///
     /// Desktop and CLI use the same model files. Override with
-    /// `CAT_SPEEDUP_SHERPA_EXE` / `CAT_SPEEDUP_SHERPA_MODEL`.
+    /// `CUT_SPEEDUP_SHERPA_EXE` / `CUT_SPEEDUP_SHERPA_MODEL`.
     pub fn from_env(kind: SherpaModelKind) -> Result<Self, AsrError> {
-        let executable = std::env::var_os("CAT_SPEEDUP_SHERPA_EXE")
+        let executable = std::env::var_os("CUT_SPEEDUP_SHERPA_EXE")
             .map(PathBuf::from)
             .unwrap_or_else(default_executable);
-        let model_dir = std::env::var_os("CAT_SPEEDUP_SHERPA_MODEL")
+        let model_dir = std::env::var_os("CUT_SPEEDUP_SHERPA_MODEL")
             .map(PathBuf::from)
             .unwrap_or_else(|| default_model_dir(kind));
         Self::new(executable, model_dir, kind)

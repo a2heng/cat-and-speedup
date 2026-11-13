@@ -181,7 +181,7 @@ def main() -> None:
     args = parser.parse_args()
 
     gap_ms = int(args.gap * 1000)
-    work = Path(tempfile.mkdtemp(prefix="cat-speedup-debug-"))
+    work = Path(tempfile.mkdtemp(prefix="cut-speedup-debug-"))
     print(f"work: {work}")
     try:
         wav = prepare_audio(args.video, work)

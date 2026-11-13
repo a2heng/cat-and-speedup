@@ -14,7 +14,7 @@ use crate::model::{Plan, PlanError, Segment, SegmentKind};
 
 #[derive(Debug, thiserror::Error)]
 pub enum FfmpegError {
-    #[error("ffmpeg not found: set CAT_SPEEDUP_FFMPEG or put ffmpeg/ffprobe on PATH")]
+    #[error("ffmpeg not found: set CUT_SPEEDUP_FFMPEG or put ffmpeg/ffprobe on PATH")]
     NotFound,
     #[error("failed to run {program}: {source}")]
     Io {
@@ -104,28 +104,32 @@ impl Default for AsrOptions {
 
 impl Ffmpeg {
     pub fn discover() -> Result<Self, FfmpegError> {
-        if let Some(path) = env::var_os("CAT_SPEEDUP_FFMPEG").map(PathBuf::from) {
+        if let Some(path) = env::var_os("CUT_SPEEDUP_FFMPEG").map(PathBuf::from) {
             return Self::from_ffmpeg(path);
         }
         if let Some(path) = env::var_os("FFMPEG_BIN").map(PathBuf::from) {
             return Self::from_ffmpeg(path);
         }
 
-        for candidate in [
-            PathBuf::from("tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe"),
-            PathBuf::from("tools/ffmpeg/bin/ffmpeg.exe"),
-        ] {
-            if candidate.is_file() {
-                return Self::from_ffmpeg(candidate);
+        // The bundled tools/ directory is a Windows build. Only prefer it on
+        // Windows; on Linux/macOS use PATH so we never try to exec a PE file.
+        if cfg!(windows) {
+            for candidate in [
+                PathBuf::from("tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe"),
+                PathBuf::from("tools/ffmpeg/bin/ffmpeg.exe"),
+            ] {
+                if candidate.is_file() {
+                    return Self::from_ffmpeg(candidate);
+                }
             }
-        }
 
-        if let Ok(executable) = env::current_exe()
-            && let Some(parent) = executable.parent()
-        {
-            let candidate = parent.join("ffmpeg.exe");
-            if candidate.is_file() {
-                return Self::from_ffmpeg(candidate);
+            if let Ok(executable) = env::current_exe()
+                && let Some(parent) = executable.parent()
+            {
+                let candidate = parent.join("ffmpeg.exe");
+                if candidate.is_file() {
+                    return Self::from_ffmpeg(candidate);
+                }
             }
         }
 
@@ -567,7 +571,7 @@ fn temp_dir_for(output: &Path) -> Result<TempDir, FfmpegError> {
         .unwrap_or_else(|| Path::new("."));
 
     tempfile::Builder::new()
-        .prefix(".cat-speedup-")
+        .prefix(".cut-speedup-")
         .tempdir_in(parent)
         .or_else(|_| TempDir::new())
         .map_err(Into::into)

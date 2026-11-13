@@ -59,7 +59,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/open_video"
-            style="@style/Widget.CatSpeedup.PrimaryButton"
+            style="@style/Widget.CutSpeedup.PrimaryButton"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_marginStart="2dp"
@@ -69,7 +69,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/analyze"
-            style="@style/Widget.CatSpeedup.ActionButton"
+            style="@style/Widget.CutSpeedup.ActionButton"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_marginStart="2dp"
@@ -79,7 +79,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/export_video"
-            style="@style/Widget.CatSpeedup.ActionButton"
+            style="@style/Widget.CutSpeedup.ActionButton"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_marginStart="2dp"
@@ -89,7 +89,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/export_subtitles"
-            style="@style/Widget.CatSpeedup.ActionButton"
+            style="@style/Widget.CutSpeedup.ActionButton"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_marginStart="2dp"
@@ -161,7 +161,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="sans-serif-medium"
-                android:text="8×"
+                android:text="10×"
                 android:textColor="?attr/colorPrimary"
                 android:textSize="12sp" />
         </LinearLayout>
@@ -171,9 +171,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:stepSize="1"
-            android:value="8"
+            android:value="10"
             android:valueFrom="2"
-            android:valueTo="8"
+            android:valueTo="20"
             app:thumbHeight="14dp"
             app:thumbWidth="4dp"
             app:tickVisible="false"
@@ -301,7 +301,7 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/play_toggle"
-            style="@style/Widget.CatSpeedup.ActionButton"
+            style="@style/Widget.CutSpeedup.ActionButton"
             android:layout_width="58dp"
             android:layout_height="32dp"
             android:layout_marginStart="8dp"

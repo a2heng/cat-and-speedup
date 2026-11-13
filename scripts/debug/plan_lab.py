@@ -201,7 +201,7 @@ def main() -> None:
     args = parser.parse_args()
 
     merge_ms = int(args.merge * 1000)
-    work = Path(tempfile.mkdtemp(prefix="cat-speedup-lab-"))
+    work = Path(tempfile.mkdtemp(prefix="cut-speedup-lab-"))
     try:
         wav = work / "audio.wav"
         extract(wav, args.video)

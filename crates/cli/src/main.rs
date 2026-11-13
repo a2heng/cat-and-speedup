@@ -3,14 +3,14 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 #[cfg(feature = "whisper")]
-use cat_speedup_asr::resolve_model;
+use cut_speedup_asr::resolve_model;
 #[cfg(feature = "whisper")]
-use cat_speedup_asr::whisper::WhisperEngine;
-use cat_speedup_asr::{
+use cut_speedup_asr::whisper::WhisperEngine;
+use cut_speedup_asr::{
     AsrEngine, AsrOptions, DevicePolicy, HttpAsrEngine, SherpaEngine, SherpaModelKind,
     sherpa::{default_executable, default_model_dir},
 };
-use cat_speedup_core::{
+use cut_speedup_core::{
     AsrMap, Ffmpeg, MediaInfo, Plan, PlanOptions, RenderOptions, Transcript, build_plan,
     map_transcript,
 };
@@ -22,7 +22,7 @@ use tempfile::TempDir;
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "cat-speedup",
+    name = "cut-speedup",
     version,
     about = "Long-video silence accelerator"
 )]
@@ -78,7 +78,7 @@ impl DetectionArgs {
 
 #[derive(Debug, Clone, Args)]
 struct SherpaArgs {
-    /// Path to sherpa-onnx-offline (or CAT_SPEEDUP_SHERPA_EXE).
+    /// Path to sherpa-onnx-offline (or CUT_SPEEDUP_SHERPA_EXE).
     #[arg(long)]
     sherpa_exe: Option<PathBuf>,
     /// Directory containing encoder_adaptor.int8.onnx / llm.int8.onnx / tokenizer.
@@ -152,7 +152,7 @@ struct TranscribeArgs {
     /// Model name sent to the HTTP ASR service.
     #[arg(long)]
     asr_model: Option<String>,
-    /// Bearer token for the HTTP ASR service (or CAT_SPEEDUP_ASR_API_KEY).
+    /// Bearer token for the HTTP ASR service (or CUT_SPEEDUP_ASR_API_KEY).
     #[arg(long)]
     asr_api_key: Option<String>,
     #[arg(long, default_value_t = 600)]
@@ -217,10 +217,10 @@ fn doctor() -> Result<()> {
     println!("ffprobe: {}", ffmpeg.ffprobe.display());
     println!("version: {}", ffmpeg.version()?);
     #[cfg(feature = "whisper")]
-    println!("whisper: {}", cat_speedup_asr::whisper_cpp_version());
+    println!("whisper: {}", cut_speedup_asr::whisper_cpp_version());
     println!(
         "gpu:     {}",
-        cat_speedup_asr::gpu_backend().unwrap_or("none (CPU-only build)")
+        cut_speedup_asr::gpu_backend().unwrap_or("none (CPU-only build)")
     );
     println!("sherpa:  {}", default_executable().display());
     println!(
@@ -287,7 +287,7 @@ fn prepare_asr(args: PrepareAsrArgs) -> Result<()> {
     let ffmpeg = Ffmpeg::discover()?;
     let info = ffmpeg.probe(&args.input)?;
     let plan = build_plan_for(&ffmpeg, &args.input, &info, &args.detection)?;
-    let options = cat_speedup_core::ffmpeg::AsrOptions {
+    let options = cut_speedup_core::ffmpeg::AsrOptions {
         sample_rate: args.sample_rate,
         merge_gap_ms: (args.merge_gap * 1000.0).round() as u64,
     };
@@ -331,7 +331,7 @@ fn transcribe(args: TranscribeArgs) -> Result<()> {
         let ffmpeg = Ffmpeg::discover()?;
         let info = ffmpeg.probe(input)?;
         let plan = build_plan_for(&ffmpeg, input, &info, &args.detection)?;
-        let asr_options = cat_speedup_core::ffmpeg::AsrOptions {
+        let asr_options = cut_speedup_core::ffmpeg::AsrOptions {
             sample_rate: 16_000,
             merge_gap_ms: 500,
         };
@@ -365,7 +365,7 @@ fn transcribe(args: TranscribeArgs) -> Result<()> {
     #[cfg(feature = "whisper")]
     let spec = {
         let model = if args.model.eq_ignore_ascii_case("auto") {
-            if cat_speedup_asr::gpu_backend().is_some() {
+            if cut_speedup_asr::gpu_backend().is_some() {
                 "small"
             } else {
                 "base"
@@ -397,16 +397,16 @@ fn transcribe(args: TranscribeArgs) -> Result<()> {
             let url = args
                 .asr_url
                 .clone()
-                .or_else(|| std::env::var("CAT_SPEEDUP_ASR_URL").ok())
+                .or_else(|| std::env::var("CUT_SPEEDUP_ASR_URL").ok())
                 .unwrap_or_else(|| default_asr_url.to_string());
             let api_key = args
                 .asr_api_key
                 .clone()
-                .or_else(|| std::env::var("CAT_SPEEDUP_ASR_API_KEY").ok());
+                .or_else(|| std::env::var("CUT_SPEEDUP_ASR_API_KEY").ok());
             let model = args
                 .asr_model
                 .clone()
-                .or_else(|| std::env::var("CAT_SPEEDUP_ASR_MODEL").ok())
+                .or_else(|| std::env::var("CUT_SPEEDUP_ASR_MODEL").ok())
                 .unwrap_or_else(|| {
                     if args.engine == "funasr" {
                         "FunAudioLLM/Fun-ASR-Nano-2512".to_string()

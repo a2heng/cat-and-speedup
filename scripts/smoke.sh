@@ -6,7 +6,7 @@ source "$ROOT/scripts/env.sh"
 OUT="${1:-$ROOT/out/smoke}"
 mkdir -p "$OUT"
 
-FFMPEG_BIN="${CAT_SPEEDUP_FFMPEG:-ffmpeg}"
+FFMPEG_BIN="${CUT_SPEEDUP_FFMPEG:-ffmpeg}"
 if [[ "$FFMPEG_BIN" == "ffmpeg" ]]; then
   FFPROBE_BIN="ffprobe"
 else
@@ -24,13 +24,13 @@ fi
   -map "[a]" -map 4:v -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest \
   "$OUT/input.mp4"
 
-CAT_SPEEDUP_FFMPEG="$FFMPEG_BIN" cargo run -q -p cat-speedup -- \
+CUT_SPEEDUP_FFMPEG="$FFMPEG_BIN" cargo run -q -p cut-speedup -- \
   analyze "$OUT/input.mp4" --speed 4 --margin 0.15 --output "$OUT/plan.json"
 
-CAT_SPEEDUP_FFMPEG="$FFMPEG_BIN" cargo run -q -p cat-speedup -- \
+CUT_SPEEDUP_FFMPEG="$FFMPEG_BIN" cargo run -q -p cut-speedup -- \
   render "$OUT/input.mp4" "$OUT/output.mp4" --plan "$OUT/plan.json"
 
-CAT_SPEEDUP_FFMPEG="$FFMPEG_BIN" cargo run -q -p cat-speedup -- \
+CUT_SPEEDUP_FFMPEG="$FFMPEG_BIN" cargo run -q -p cut-speedup -- \
   prepare-asr "$OUT/input.mp4" "$OUT/asr.wav" --map "$OUT/asr-map.json" \
   --speed 4 --margin 0.15
 
@@ -38,7 +38,7 @@ cat > "$OUT/transcript-edited.json" <<'JSON'
 {"segments":[{"start_ms":500,"end_ms":1500,"text":"hello"}]}
 JSON
 
-CAT_SPEEDUP_FFMPEG="$FFMPEG_BIN" cargo run -q -p cat-speedup -- \
+CUT_SPEEDUP_FFMPEG="$FFMPEG_BIN" cargo run -q -p cut-speedup -- \
   map-transcript "$OUT/transcript-edited.json" "$OUT/asr-map.json" \
   --output "$OUT/transcript-original.json"
 

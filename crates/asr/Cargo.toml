@@ -1,5 +1,5 @@
 [package]
-name = "cat-speedup-asr"
+name = "cut-speedup-asr"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,7 +11,7 @@ gpu-vulkan = ["whisper", "whisper-rs/vulkan"]
 gpu-cuda = ["whisper", "whisper-rs/cuda"]
 
 [dependencies]
-cat-speedup-core = { path = "../core" }
+cut-speedup-core = { path = "../core" }
 hound.workspace = true
 serde.workspace = true
 serde_json.workspace = true

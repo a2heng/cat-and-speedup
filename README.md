@@ -1,4 +1,4 @@
-# cat-and-speedup
+# cut-speedup
 
 Long-video auto editor: keep speech at 1x, speed up non-speech, and show a transcript for fast review. Desktop UI in Rust + GPUI, Android in native Kotlin.
 
@@ -12,6 +12,7 @@ Long-video auto editor: keep speech at 1x, speed up non-speech, and show a trans
 - [x] ASR 预缩短音频 + 原时间轴映射
 - [x] **内置 FunASR**：sherpa-onnx + Fun-ASR-Nano-2512 int8，离线
 - [x] GPUI 桌面壳：打开视频、分析、转写字幕、出片、字幕点击跳帧
+- [x] **Web 端（`apps/web`，端口 42006）**：视频库浏览、原片流式播放、VAD+ASR / 响度阈值两种切分、字幕跳转、单次 filter_complex 导出
 - [x] Android：Media3 播放 + ASR-first 切分 / 跟随加速 / 本地 X-ASR / 滑块调参 / 导出视频 / 导出 SRT
 - [ ] 桌面连续播放（当前是帧预览 + 字幕跳帧）
 - [ ] Android 转写进度可视化（当前只有状态栏文字 + logcat）
@@ -37,21 +38,54 @@ bash scripts/fetch-asr.sh
 tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe
 ```
 
-或设 `CAT_SPEEDUP_FFMPEG`。
+或设 `CUT_SPEEDUP_FFMPEG`。
 
 ## 桌面端（GPUI，原生窗口）
 
 ```bash
-cargo run -p cat-speedup-desktop
+cargo run -p cut-speedup-desktop
 ```
 
 界面流程：打开视频 -> 自动分析 -> 转写字幕 -> 点击字幕看对应画面 -> 出片。全程本地。
+
+## Web 端（浏览器，端口 42006）
+
+```bash
+bash scripts/web.sh          # 等同于 cargo run --release -p cut-speedup-web -- --port 42006
+```
+
+打开 `http://192.168.0.105:42006`（本机 `http://127.0.0.1:42006`）。
+
+- 左侧浏览 `~/` 下的视频（默认列出 `Videos`、`下载`、Windows `Videos`、`D:`）；
+- 中间是原片 `<video>`（Range 流式，可拖动）+ 片段色条（蓝=人声 1x，绿=加速）；
+- 右侧可调检测方式与参数：**VAD + ASR**（与手机同一套 Silero VAD + X-ASR，带字幕）或**响度阈值**（快、无字幕）；分析在后台任务里跑，页面显示进度；
+- 字幕跟播高亮、点击跳转；导出用一遍 `filter_complex` 完成（trim/atempo/concat），进度按输出时间显示，完成后直接下载。
+
+Linux 上要跑 VAD 模式需要 sherpa-onnx 的 Linux CLI：
+
+```bash
+bash scripts/fetch-sherpa-linux.sh
+```
+
+Windows 继续用 `tools/sherpa-onnx/...` 里的 `.exe`，可用 `CUT_SPEEDUP_VAD_ASR` 指定任意路径。
+
+### 切分 bug：VAD 一次喂 30 秒会丢开头
+
+Android 旧实现把整段 30 s 解码音频一次性 `Vad.acceptWaveform()`，而 sherpa-onnx 的环形缓冲只有 `maxSpeechDuration`（30 s）；溢出后开头音频被丢掉，长视频的前 ~30–36 s 会被判成静音并加速。PC 复现：
+
+```bash
+LD_LIBRARY_PATH=tools/sherpa-onnx-v2.0.1-linux-x64-shared-no-tts/lib \
+python3 scripts/debug/vad_chunk_probe.py 视频.mp4 \
+  --lib tools/sherpa-onnx-v2.0.1-linux-x64-shared-no-tts/lib
+```
+
+`chunk=30s` 时第一段人声从 29.7 s 才开始；`chunk<=0.1s` 时从 1.0 s 开始。修复：喂 VAD 时按 100 ms 切片（`VAD_FEED_SAMPLES=1600`），Android 与 Web 都遵守。
 
 ## CLI
 
 ```bash
 # 检查本地 FFmpeg / sherpa / FunASR 模型
-cargo run -p cat-speedup -- doctor
+cargo run -p cut-speedup -- doctor
 
 # 单测 / 静态检查
 cargo test --workspace
@@ -61,16 +95,16 @@ cargo clippy --workspace --all-targets -- -D warnings
 bash scripts/smoke.sh
 
 # 分析
-cargo run -p cat-speedup -- analyze input.mp4 --speed 4 --noise -30dB --min-silence 0.5 -o plan.json
+cargo run -p cut-speedup -- analyze input.mp4 --speed 4 --noise -30dB --min-silence 0.5 -o plan.json
 
 # 出片
-cargo run -p cat-speedup -- render input.mp4 output.mp4 --plan plan.json
+cargo run -p cut-speedup -- render input.mp4 output.mp4 --plan plan.json
 
 # 字幕（默认：本地 sherpa + Fun-ASR-Nano，离线）
-cargo run -p cat-speedup -- transcribe input.mp4 --language zh -o transcript.json
+cargo run -p cut-speedup -- transcribe input.mp4 --language zh -o transcript.json
 
 # 显式指定 sherpa
-cargo run -p cat-speedup -- transcribe input.mp4 --engine sherpa --language zh -o transcript.json
+cargo run -p cut-speedup -- transcribe input.mp4 --engine sherpa --language zh -o transcript.json
 ```
 
 `--engine` 可选：
@@ -86,14 +120,14 @@ cargo run -p cat-speedup -- transcribe input.mp4 --engine sherpa --language zh -
 可通过环境变量覆盖：
 
 ```bash
-export CAT_SPEEDUP_SHERPA_EXE=/path/to/sherpa-onnx-offline
-export CAT_SPEEDUP_SHERPA_MODEL=/path/to/model-dir
+export CUT_SPEEDUP_SHERPA_EXE=/path/to/sherpa-onnx-offline
+export CUT_SPEEDUP_SHERPA_MODEL=/path/to/model-dir
 ```
 
 低配机器可换 Paraformer：
 
 ```bash
-cargo run -p cat-speedup -- transcribe input.mp4 --engine sherpa --sherpa-kind paraformer --sherpa-model-dir models/sherpa-onnx-paraformer-zh-int8-2025-10-07
+cargo run -p cut-speedup -- transcribe input.mp4 --engine sherpa --sherpa-kind paraformer --sherpa-model-dir models/sherpa-onnx-paraformer-zh-int8-2025-10-07
 ```
 
 ## Android
@@ -113,19 +147,23 @@ source /d/AndroidDevToolchain/env.sh   # 本机工具链，见全局 AGENTS.md
 默认：人声 1x、停顿 10x、停顿 ≥5 秒才加速、人声前后留白 150ms；参数持久化，“恢复默认”有确认提示。
 切分后播放默认跟随片段加速（人声 1x，静音 Nx），底部字幕面板按原时间轴显示，点一条跳到原片位置。
 
-导出视频用 Media3 Transformer 逐段重编码再拼接，参数沿用源分辨率/帧率，成片在 `Movies/CatSpeedup/`；
-字幕导出标准 SRT，在 `Download/CatSpeedup/`。转写按人声段切片（30 s/块），长视频不会整片进内存。
+导出视频用 Media3 Transformer 逐段重编码再拼接，参数沿用源分辨率/帧率，成片在 `Movies/CutSpeedup/`；
+字幕导出标准 SRT，在 `Download/CutSpeedup/`。转写按人声段切片（30 s/块），长视频不会整片进内存。
 
-日志：`adb logcat -s CatSpeedup`（切分参数、片段边界、ASR 分块、变速点、导出进度都在里面）。
+日志：`adb logcat -s CutSpeedup`（切分参数、片段边界、ASR 分块、变速点、导出进度都在里面）。
 
 ## 目录
 
 - `crates/core`：检测、片段计划、ffmpeg 命令、ASR 映射
 - `crates/asr`：`AsrEngine` trait、sherpa-onnx 离线 FunASR、可选 whisper、调试用 HTTP
-- `crates/cli`：`cat-speedup` 命令行
+- `crates/cli`：`cut-speedup` 命令行
 - `apps/desktop`：GPUI 桌面端
+- `apps/web`：浏览器端（axum，端口 42006；视频库 / 播放 / 分析 / 导出）
 - `apps/android`：Android 原生播放器壳（切分 / 本地转写 / 变速导出）
+- `scripts/web.sh`：编译并启动 Web 端
 - `scripts/fetch-asr.sh`：下载 sherpa-onnx + FunASR Nano
+- `scripts/fetch-sherpa-linux.sh`：下载 Web 端 VAD 用的 Linux sherpa-onnx CLI
+- `scripts/debug/vad_chunk_probe.py`：复现 VAD 大块喂入丢音频的 PC 脚本
 - `scripts/fetch-sherpa-android.sh`：下载 sherpa-onnx Android JNI 库
 - `scripts/push-asr-android.sh`：把 FunASR Nano 推到手机
 

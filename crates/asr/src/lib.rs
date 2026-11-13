@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use cat_speedup_core::Transcript;
+use cut_speedup_core::Transcript;
 
 pub mod http;
 pub mod model;

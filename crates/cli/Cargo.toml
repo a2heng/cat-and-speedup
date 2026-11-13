@@ -1,23 +1,23 @@
 [package]
-name = "cat-speedup"
+name = "cut-speedup"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [features]
 default = []
-whisper = ["cat-speedup-asr/whisper"]
-gpu-vulkan = ["cat-speedup-asr/gpu-vulkan"]
-gpu-cuda = ["cat-speedup-asr/gpu-cuda"]
+whisper = ["cut-speedup-asr/whisper"]
+gpu-vulkan = ["cut-speedup-asr/gpu-vulkan"]
+gpu-cuda = ["cut-speedup-asr/gpu-cuda"]
 
 [[bin]]
-name = "cat-speedup"
+name = "cut-speedup"
 path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
-cat-speedup-asr = { path = "../asr", default-features = false }
-cat-speedup-core = { path = "../core" }
+cut-speedup-asr = { path = "../asr", default-features = false }
+cut-speedup-core = { path = "../core" }
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true

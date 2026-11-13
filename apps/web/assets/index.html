@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>cut-speedup web</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo">✂</span><span>cut-speedup</span><span class="tag">web</span></div>
+  <div class="top-actions">
+    <span id="server-status" class="pill">已连接</span>
+    <span class="muted small">端口 42006</span>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="panel library">
+    <div class="panel-head">
+      <h2>视频库</h2>
+      <button id="refresh-dir" class="icon" title="刷新">⟳</button>
+    </div>
+    <div id="roots" class="chips"></div>
+    <div class="path-row">
+      <button id="go-up" class="icon" title="上一级">↑</button>
+      <input id="path-input" spellcheck="false" placeholder="绝对路径" />
+      <button id="go-path" class="icon" title="打开">→</button>
+    </div>
+    <ul id="entries" class="entries"></ul>
+  </aside>
+
+  <main class="panel stage">
+    <div class="stage-head">
+      <div>
+        <h2 id="video-title">未选择视频</h2>
+        <div id="video-meta" class="muted small"></div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="follow-plan" checked /> 跟随计划变速</label>
+    </div>
+    <div class="video-wrap">
+      <video id="player" controls playsinline preload="metadata"></video>
+      <div id="video-empty" class="empty">从左侧选择一个视频</div>
+    </div>
+    <div id="timeline" class="timeline">
+      <div id="timeline-segments" class="timeline-segments"></div>
+      <div id="playhead" class="playhead"></div>
+    </div>
+    <div class="timeline-legend">
+      <span><i class="dot voice"></i>人声 1×</span>
+      <span><i class="dot silence"></i>静音加速</span>
+      <span id="segment-now" class="muted small">—</span>
+    </div>
+    <div id="stats" class="stats"></div>
+  </main>
+
+  <aside class="panel inspector">
+    <section>
+      <h2>切分</h2>
+      <div class="field">
+        <label for="mode">检测方式</label>
+        <select id="mode">
+          <option value="vad">VAD + ASR（与手机一致，带字幕）</option>
+          <option value="silence">响度阈值（快，无字幕）</option>
+        </select>
+      </div>
+      <div class="grid2">
+        <div class="field"><label for="speed">静音倍速</label><input id="speed" type="number" min="1" max="20" step="0.5" value="8" /></div>
+        <div class="field"><label for="min-gap">多长停顿才加速（秒）</label><input id="min-gap" type="number" min="0.3" max="60" step="0.5" value="5" /></div>
+        <div class="field"><label for="margin">人声前后留白（毫秒）</label><input id="margin" type="number" min="0" max="1000" step="10" value="150" /></div>
+        <div class="field"><label for="noise">静音阈值（dB）</label><input id="noise" type="number" min="-80" max="0" step="1" value="-30" /></div>
+        <div class="field"><label for="min-silence">最短静音（秒）</label><input id="min-silence" type="number" min="0.1" max="5" step="0.1" value="0.5" /></div>
+      </div>
+      <button id="analyze" class="primary">开始分析</button>
+      <div class="job hidden" id="analyze-job">
+        <div class="job-line"><span id="analyze-msg">…</span><span id="analyze-pct"></span></div>
+        <div class="bar"><div id="analyze-bar"></div></div>
+      </div>
+    </section>
+
+    <section class="subtitles-section">
+      <div class="section-head">
+        <h2>字幕</h2><span id="subtitle-count" class="muted small"></span>
+      </div>
+      <div id="subtitles" class="subtitles"><div class="empty small">分析后显示，点一条跳到原片</div></div>
+    </section>
+
+    <section>
+      <h2>导出</h2>
+      <div class="field"><label for="output-name">文件名</label><input id="output-name" placeholder="默认用源文件名" /></div>
+      <button id="render" class="primary" disabled>导出加速视频</button>
+      <div class="job hidden" id="render-job">
+        <div class="job-line"><span id="render-msg">…</span><span id="render-pct"></span></div>
+        <div class="bar"><div id="render-bar"></div></div>
+      </div>
+      <a id="download" class="download hidden" href="#">下载成片</a>
+    </section>
+  </aside>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

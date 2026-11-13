@@ -13,7 +13,7 @@ if [[ ! -f "$INPUT" ]]; then
   exit 1
 fi
 
-cargo run -q -p cat-speedup -- transcribe "$INPUT" \
+cargo run -q -p cut-speedup -- transcribe "$INPUT" \
   --engine sherpa \
   --language zh \
   --output "$OUT_DIR/transcript.json"

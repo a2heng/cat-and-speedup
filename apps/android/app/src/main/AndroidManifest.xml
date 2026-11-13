@@ -6,7 +6,7 @@
         android:label="@string/app_name"
         android:largeHeap="true"
         android:supportsRtl="true"
-        android:theme="@style/Theme.CatSpeedup">
+        android:theme="@style/Theme.CutSpeedup">
 
         <activity
             android:name=".MainActivity"

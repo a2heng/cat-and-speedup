@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Once;
 
-use cat_speedup_core::{Transcript, TranscriptSegment};
+use cut_speedup_core::{Transcript, TranscriptSegment};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 use crate::{

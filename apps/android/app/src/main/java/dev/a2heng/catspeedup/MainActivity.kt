@@ -70,6 +70,7 @@ class MainActivity : AppCompatActivity() {
     private var settingsExpanded = false
     private var userSeeking = false
     private var suppressingSliderCallback = false
+    private var skippedSilenceStart = Long.MIN_VALUE
     private var analyzing = false
     private var exporting = false
 
@@ -108,6 +109,7 @@ class MainActivity : AppCompatActivity() {
         subtitles = emptyList()
         speechRanges = emptyList()
         transcriptReady = false
+        skippedSilenceStart = Long.MIN_VALUE
         currentIndex = -1
         adapter.setItems(subtitles)
         currentSubtitleView.text = ""
@@ -197,6 +199,7 @@ class MainActivity : AppCompatActivity() {
         playerView.setOnClickListener { togglePlayback() }
         playToggle.setOnClickListener { togglePlayback() }
         timelineBar.onSeek = { position ->
+            skippedSilenceStart = Long.MIN_VALUE
             player.seekTo(position)
             applyPlaybackSpeed(force = true)
         }
@@ -250,7 +253,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyOptionsToSliders(options: PlanOptions) {
         suppressingSliderCallback = true
-        silenceSpeedSlider.value = options.silenceSpeed.coerceIn(2f, 8f)
+        silenceSpeedSlider.value = options.silenceSpeed.coerceIn(2f, 20f)
         minGapSlider.value = (options.minSpeedupSilenceMs / 1000).coerceIn(1, 30).toFloat()
         marginSlider.value = options.marginMs.coerceIn(0, 400).toFloat()
         suppressingSliderCallback = false
@@ -525,6 +528,9 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val ASR_CHUNK_MS = 30_000L
 
+        /** 100 ms at 16 kHz: safely below the VAD ring buffer (30 s). */
+        const val VAD_FEED_SAMPLES = 1_600
+
         /** adb-only helpers: `am start ... --ez auto_analyze true`. */
         const val EXTRA_AUTO_ANALYZE = "auto_analyze"
         const val EXTRA_AUTO_EXPORT = "auto_export"
@@ -594,8 +600,18 @@ class MainActivity : AppCompatActivity() {
         var processedMs = 0L
         try {
             AudioDecoder.decodeRangesTo16kMono(this, uri, decodeRanges(durationMs)) { _, samples ->
-                engine.acceptWaveform(samples)
-                drainVad(engine, lines, speech)
+                // Feed the VAD in small slices. sherpa-onnx's ring buffer is
+                // only maxSpeechDuration (30 s) long; pushing a whole 30 s
+                // decode range at once overflows it and silently drops the
+                // first ~30 s of audio, which used to mark the opening of a
+                // recording as "silence" and speed it up.
+                var offset = 0
+                while (offset < samples.size) {
+                    val end = minOf(samples.size, offset + VAD_FEED_SAMPLES)
+                    engine.acceptWaveform(samples.copyOfRange(offset, end))
+                    offset = end
+                    drainVad(engine, lines, speech)
+                }
                 processedMs += samples.size * 1000L / 16_000
                 onProgress(processedMs, durationMs)
             }
@@ -743,7 +759,7 @@ class MainActivity : AppCompatActivity() {
         }
         val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US)
             .format(java.util.Date())
-        val name = "cat-speedup-$stamp.srt"
+        val name = "cut-speedup-$stamp.srt"
         runCatching {
             ExportStore.saveSubtitle(this, name, toSrt(subtitles))
         }.onSuccess { location ->
@@ -757,13 +773,30 @@ class MainActivity : AppCompatActivity() {
         handler.removeCallbacks(speedBoundaryRunnable)
         val segment = if (followPlan) plan?.segmentAt(player.currentPosition) else null
         val desired = segment?.speed ?: 1f
-        if (force || player.playbackParameters.speed != desired) {
+        // ExoPlayer's audio sink caps at 8x; for higher plan speeds we skip the
+        // silent range and let export still use the requested multiplier.
+        val playbackSpeed = if (desired > 8f) 8f else desired
+        if (force || player.playbackParameters.speed != playbackSpeed) {
             Log.d(
                 TAG,
-                "speed ${player.playbackParameters.speed}x -> ${desired}x " +
-                    "at ${player.currentPosition}ms",
+                "speed ${player.playbackParameters.speed}x -> $playbackSpeed" +
+                    " (plan ${desired}x) at ${player.currentPosition}ms",
             )
-            player.setPlaybackSpeed(desired)
+            player.setPlaybackSpeed(playbackSpeed)
+        }
+
+        if (segment != null && !segment.isVoice && desired > 8f && player.isPlaying) {
+            if (skippedSilenceStart != segment.startMs) {
+                skippedSilenceStart = segment.startMs
+                val target = segment.endMs
+                Log.d(TAG, "skip silence ${segment.startMs}-$target at ${desired}x")
+                handler.post {
+                    if (player.isPlaying) {
+                        player.seekTo(target)
+                        applyPlaybackSpeed(force = true)
+                    }
+                }
+            }
         }
 
         val label = when {

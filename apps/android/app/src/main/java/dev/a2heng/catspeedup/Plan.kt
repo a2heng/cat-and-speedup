@@ -54,7 +54,7 @@ data class PlaybackPlan(
 
 object PlanDefaults {
     const val VOICE_SPEED = 1f
-    const val SILENCE_SPEED = 8f
+    const val SILENCE_SPEED = 10f
     const val MARGIN_MS = 150L
     const val MIN_SPEEDUP_SILENCE_MS = 5_000L
     const val FALLBACK_NOISE_DB = -30f

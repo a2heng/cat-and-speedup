@@ -2,7 +2,7 @@ use std::io::Write as _;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use cat_speedup_core::{Transcript, TranscriptSegment};
+use cut_speedup_core::{Transcript, TranscriptSegment};
 use serde::Deserialize;
 
 use crate::{AsrEngine, AsrError, AsrOptions, AsrResult, split_long_segments};
@@ -81,7 +81,7 @@ fn boundary() -> String {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
         .unwrap_or(0);
-    format!("----cat-speedup-{}-{nanos}", std::process::id())
+    format!("----cut-speedup-{}-{nanos}", std::process::id())
 }
 
 fn multipart_body(

@@ -16,8 +16,8 @@ if [[ -d "$ROOT/tools/libclang/clang/native" ]]; then
   export LIBCLANG_PATH="${LIBCLANG_PATH:-$ROOT/tools/libclang/clang/native}"
 fi
 
-if [[ -z "${CAT_SPEEDUP_FFMPEG:-}" && -x "$ROOT/tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe" ]]; then
-  export CAT_SPEEDUP_FFMPEG="$ROOT/tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe"
+if [[ -z "${CUT_SPEEDUP_FFMPEG:-}" && -x "$ROOT/tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe" ]]; then
+  export CUT_SPEEDUP_FFMPEG="$ROOT/tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe"
 fi
 
 export CMAKE_BUILD_PARALLEL_LEVEL="${CMAKE_BUILD_PARALLEL_LEVEL:-8}"
