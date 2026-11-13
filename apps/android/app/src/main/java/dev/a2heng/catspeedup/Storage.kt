@@ -58,7 +58,7 @@ object TranscriptStore {
     }
 
     /** Bump when the planning model changes; old caches must not be reused. */
-    private const val CACHE_VERSION = 2
+    private const val CACHE_VERSION = 3
 
     fun load(context: Context, uri: Uri): CachedTranscript? {
         val file = file(context, uri)

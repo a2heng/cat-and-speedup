@@ -77,7 +77,7 @@
 - Web 单测：`cargo test -p cut-speedup-web`。桌面不在 default-members，单独 `cargo check -p cut-speedup-desktop`。
 - 下载本地 ASR 运行时 + 模型：`bash scripts/fetch-asr.sh`（sherpa-onnx Windows + Fun-ASR-Nano int8，约 1 GB，gitignore）。
 - 检查：`cargo run -p cut-speedup -- doctor`（应显示 sherpa 路径和 funasr 模型目录）
-- 单测：`cargo test`（default-members，不含 desktop/web 之外的壳）；`cargo test -p cut-speedup-web` 跑 Web。`--workspace` 会拉 GPUI 的 `xattr`，Linux 上当前编不过。静态检查：`cargo clippy --workspace --all-targets -- -D warnings`（同样受 desktop 限制）。
+- 单测：`cargo test`（default-members，不含 desktop 与 web）；`cargo test -p cut-speedup-web` 跑 Web。`--workspace` 会拉 GPUI 的 `xattr`，Linux 上当前编不过；clippy 同理，只查核心与 Web。
 - 桌面：`cargo run -p cut-speedup-desktop`（GPUI 原生窗口；默认离线，不需要 URL；第一次构建 GPUI 约 3 分钟）
 - Android：`cd apps/android && ./gradlew :app:assembleDebug`（先启用本机工具链，见全局 AGENTS.md / `env.sh`）。
 - Android 单测：`cd apps/android && ./gradlew :app:testDebugUnitTest`。
