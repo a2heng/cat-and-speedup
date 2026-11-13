@@ -111,6 +111,24 @@ impl Ffmpeg {
             return Self::from_ffmpeg(path);
         }
 
+        for candidate in [
+            PathBuf::from("tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe"),
+            PathBuf::from("tools/ffmpeg/bin/ffmpeg.exe"),
+        ] {
+            if candidate.is_file() {
+                return Self::from_ffmpeg(candidate);
+            }
+        }
+
+        if let Ok(executable) = env::current_exe()
+            && let Some(parent) = executable.parent()
+        {
+            let candidate = parent.join("ffmpeg.exe");
+            if candidate.is_file() {
+                return Self::from_ffmpeg(candidate);
+            }
+        }
+
         let ffmpeg = find_in_path("ffmpeg").ok_or(FfmpegError::NotFound)?;
         Self::with_ffmpeg(ffmpeg)
     }

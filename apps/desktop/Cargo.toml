@@ -10,7 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
-cat-speedup-asr = { path = "../../crates/asr" }
+cat-speedup-asr = { path = "../../crates/asr", default-features = false }
 cat-speedup-core = { path = "../../crates/core" }
 gpui = "0.2.2"
 rfd = "0.15"

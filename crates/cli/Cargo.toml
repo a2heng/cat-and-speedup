@@ -6,6 +6,7 @@ license.workspace = true
 
 [features]
 default = []
+whisper = ["cat-speedup-asr/whisper"]
 gpu-vulkan = ["cat-speedup-asr/gpu-vulkan"]
 gpu-cuda = ["cat-speedup-asr/gpu-cuda"]
 
@@ -15,7 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
-cat-speedup-asr = { path = "../asr" }
+cat-speedup-asr = { path = "../asr", default-features = false }
 cat-speedup-core = { path = "../core" }
 clap.workspace = true
 serde.workspace = true

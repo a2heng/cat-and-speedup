@@ -5,10 +5,13 @@ third-party software; their licenses apply to their own code and binaries.
 
 - **GPUI** (Zed Industries) — Apache-2.0. Desktop UI framework.
 - **whisper-rs / whisper.cpp** — Unlicense / MIT. Built-in ASR backend.
-- **FunASR** — MIT (code). Used as an external OpenAI-compatible service;
-  model weights are distributed by their respective model cards.
+- **FunASR** — MIT (code). The default runtime is sherpa-onnx; the
+  **Fun-ASR-Nano-2512** weights are governed by the FunASR Model Open Source
+  License Agreement v1.1 and are **not** bundled in this repository.
+- **sherpa-onnx** — Apache-2.0. Local offline ASR runtime (Windows CLI and
+  Android Kotlin API).
 - **Fun-ASR-Nano-2512** — model weights are not bundled. Check the model card
-  before redistribution.
+  and the FunASR model license before redistribution.
 - **FFmpeg** — LGPL-2.1-or-later by default; some builds are GPL. This project
   invokes a user-provided `ffmpeg`/`ffprobe` binary and does not bundle it.
 - **auto-editor** — Unlicense. Research reference for the silence-speed-up

@@ -5,7 +5,6 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/env.sh"
 
 INPUT="${1:-$ROOT/out/asr-test/input.mp4}"
-MODEL="${MODEL:-tiny}"
 OUT_DIR="$(dirname "$INPUT")"
 
 if [[ ! -f "$INPUT" ]]; then
@@ -15,7 +14,7 @@ if [[ ! -f "$INPUT" ]]; then
 fi
 
 cargo run -q -p cat-speedup -- transcribe "$INPUT" \
-  --model "$MODEL" \
+  --engine sherpa \
   --language zh \
   --output "$OUT_DIR/transcript.json"
 

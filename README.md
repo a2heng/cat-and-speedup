@@ -1,96 +1,100 @@
 # cat-and-speedup
 
-Long-video auto editor: keep speech at 1x, speed up non-speech, and show a transcript for fast review. Desktop UI in Rust + GPUI, Android planned in native Kotlin/Compose.
+Long-video auto editor: keep speech at 1x, speed up non-speech, and show a transcript for fast review. Desktop UI in Rust + GPUI, Android in native Kotlin.
 
-长视频自动剪辑：按时间轴保留人声段原速，非人声段加速；桌面 GPUI，Android 原生 Kotlin。
+长视频自动剪辑：按时间轴保留人声段原速，非人声段加速；桌面 GPUI，Android 原生 Kotlin。桌面端默认 **完全离线** 运行，FunASR 内置。
 
-## 第一版范围（PC）
+## 状态
 
 - [x] 阈值检测（FFmpeg `silencedetect`）
 - [x] 有序片段计划（人声 1x / 非人声 Nx）
 - [x] 分段渲染 + concat
 - [x] ASR 预缩短音频 + 原时间轴映射
-- [x] 内置 whisper.cpp ASR（CPU；GPU 通过 feature 编译）
-- [x] 通用 HTTP ASR 后端（OpenAI 兼容接口，默认接 Fun-ASR-Nano）
+- [x] **内置 FunASR**：sherpa-onnx + Fun-ASR-Nano-2512 int8，离线
 - [x] GPUI 桌面壳：打开视频、分析、转写字幕、出片、字幕点击跳帧
-- [x] Android 播放器壳：Media3 视频 + 导入原时间轴字幕 JSON（APK 已构建，见 `apps/android/README.md`）
-- [ ] 连续视频播放（第一版是“帧预览 + 字幕跳帧”，不是完整播放器）
-- [ ] Android 设备端切分/加速
-
-第一版先保证 **PC 能完成“看字幕 -> 编排 -> 出片”的闭环**；Android 与连续播放放到下一版，避免把未验证的端侧链路混进首个开源版本。
+- [x] Android 播放器壳：Media3 视频 + 导入原时间轴字幕 JSON
+- [ ] 桌面连续播放（当前是帧预览 + 字幕跳帧）
+- [ ] Android 设备端内置 FunASR / 切分 / 加速
 
 ## 环境
 
-需要 PATH 里有 `ffmpeg` / `ffprobe`，或用 `CAT_SPEEDUP_FFMPEG` 指向 ffmpeg 可执行文件。本机测试用的是项目内 `tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe`（已 gitignore）。
+桌面默认只用两样本地资源，不需要浏览器、不需要 `127.0.0.1` 服务：
 
-whisper.cpp 通过 `whisper-rs` 静态编译，首次构建需要 CMake + libclang：
-
-```bash
-source scripts/env.sh   # 本机：VS BuildTools 的 cmake + tools/libclang
+```text
+tools/sherpa-onnx/.../bin/sherpa-onnx-offline.exe
+models/sherpa-onnx-funasr-nano-int8-2025-12-30/
 ```
 
-FunASR 用现成的 OpenAI 兼容服务，默认地址 `http://127.0.0.1:8000/v1/audio/transcriptions`，默认模型 `FunAudioLLM/Fun-ASR-Nano-2512`。可用环境变量改：
+它们不进 git；拉取命令：
 
 ```bash
-export CAT_SPEEDUP_ASR_URL=http://127.0.0.1:8000/v1/audio/transcriptions
-export CAT_SPEEDUP_ASR_MODEL=FunAudioLLM/Fun-ASR-Nano-2512
+bash scripts/fetch-asr.sh
 ```
 
-## 桌面端
+还需要 FFmpeg。PATH 里没有时，项目会自动找：
+
+```text
+tools/ffmpeg-9.0.2-full_build/bin/ffmpeg.exe
+```
+
+或设 `CAT_SPEEDUP_FFMPEG`。
+
+## 桌面端（GPUI，原生窗口）
 
 ```bash
-source scripts/env.sh
 cargo run -p cat-speedup-desktop
 ```
 
-界面流程：打开视频 -> 自动分析 -> 转写字幕 -> 点击字幕看对应画面 -> 出片。
+界面流程：打开视频 -> 自动分析 -> 转写字幕 -> 点击字幕看对应画面 -> 出片。全程本地。
 
 ## CLI
 
 ```bash
-# 检查
+# 检查本地 FFmpeg / sherpa / FunASR 模型
 cargo run -p cat-speedup -- doctor
 
 # 单测 / 静态检查
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 
-# 端到端（合成 6 秒视频，跑完整链路）
+# 端到端（合成 6 秒视频）
 bash scripts/smoke.sh
 
-# 分析：输出有序片段计划
+# 分析
 cargo run -p cat-speedup -- analyze input.mp4 --speed 4 --noise -30dB --min-silence 0.5 -o plan.json
 
 # 出片
 cargo run -p cat-speedup -- render input.mp4 output.mp4 --plan plan.json
 
-# 给 ASR 准备语音段和映射
-cargo run -p cat-speedup -- prepare-asr input.mp4 asr.wav --map asr-map.json
+# 字幕（默认：本地 sherpa + Fun-ASR-Nano，离线）
+cargo run -p cat-speedup -- transcribe input.mp4 --language zh -o transcript.json
 
-# 字幕：自动裁语音段 -> FunASR 服务 -> 映射回原时间轴
-cargo run -p cat-speedup -- transcribe input.mp4 --engine funasr --language zh -o transcript.json
-
-# 字幕：内置 whisper（离线，中文建议 small）
-cargo run -p cat-speedup -- transcribe input.mp4 --model small --language zh -o transcript.json
-
-# 或接任意 OpenAI 兼容服务
-cargo run -p cat-speedup -- transcribe input.mp4 \
-  --engine http \
-  --asr-url http://127.0.0.1:8000/v1/audio/transcriptions \
-  --asr-model <service-model> \
-  -o transcript.json
-
-# 把 ASR（短音频时间轴）的结果映射回原片时间轴
-cargo run -p cat-speedup -- map-transcript transcript.json asr-map.json -o transcript-original.json
+# 显式指定 sherpa
+cargo run -p cat-speedup -- transcribe input.mp4 --engine sherpa --language zh -o transcript.json
 ```
 
-GPU（可选，需自备 Vulkan SDK 或 CUDA Toolkit）：
+`--engine` 可选：
+
+- `sherpa`（默认）：本地 FunASR，离线。
+- `whisper`：可选后端，需要 `--features whisper` 且首次构建要 CMake + libclang。
+- `funasr` / `http`：只用于内部调试，连 OpenAI 兼容服务；普通使用不需要。
+
+## 模型
+
+默认模型：`sherpa-onnx-funasr-nano-int8-2025-12-30`（约 972 MB，中文/英文/日文 + 中文方言）。
+
+可通过环境变量覆盖：
 
 ```bash
-cargo build -p cat-speedup --features gpu-vulkan   # 或 gpu-cuda
+export CAT_SPEEDUP_SHERPA_EXE=/path/to/sherpa-onnx-offline
+export CAT_SPEEDUP_SHERPA_MODEL=/path/to/model-dir
 ```
 
-`--device auto` 在带 GPU 后端的构建里优先 GPU，失败回退 CPU；CPU-only 构建会直接走 CPU。
+低配机器可换 Paraformer：
+
+```bash
+cargo run -p cat-speedup -- transcribe input.mp4 --engine sherpa --sherpa-kind paraformer --sherpa-model-dir models/sherpa-onnx-paraformer-zh-int8-2025-10-07
+```
 
 ## Android
 
@@ -100,24 +104,18 @@ JAVA_HOME=/d/006_Android/jdk-25 ANDROID_HOME=/d/006_Android/sdk ./gradlew :app:a
 # app/build/outputs/apk/debug/app-debug.apk
 ```
 
-第一版是播放器壳：选择视频、导入 PC 生成的 `transcript.json`、字幕跟播并点击跳转。设备端切分/加速还没接。
+当前 APK 是播放器壳：选择视频、导入 PC 生成的 `transcript.json`、字幕跟播并点击跳转。
+下一步把 sherpa-onnx 的 Android Kotlin API 和同一份 FunASR Nano 模型接进去，实现手机端离线字幕与切分/加速。
 
 ## 目录
 
 - `crates/core`：检测、片段计划、ffmpeg 命令、ASR 映射
-- `crates/asr`：`AsrEngine` trait、whisper.cpp、OpenAI 兼容 HTTP 后端
+- `crates/asr`：`AsrEngine` trait、sherpa-onnx 离线 FunASR、可选 whisper、调试用 HTTP
 - `crates/cli`：`cat-speedup` 命令行
 - `apps/desktop`：GPUI 桌面端
-- `apps/android`：Android 播放器壳（Media3 + 字幕 JSON）
-- `scripts/smoke.sh`：合成视频端到端验证
-
-## 设计约定
-
-- 片段严格按原时间轴顺序，不做重排。
-- 检测只用响度/静音阈值，不引入模型。
-- ASR 只用于字幕预览和快速编排，默认不烧字幕。
-- 详细约束见 `AGENTS.md`。
+- `apps/android`：Android 原生播放器壳
+- `scripts/fetch-asr.sh`：下载 sherpa-onnx + FunASR Nano
 
 ## License
 
-MIT。第三方依赖与运行时许可证见 `THIRD_PARTY.md`。
+MIT。第三方依赖与模型许可证见 `THIRD_PARTY.md`。

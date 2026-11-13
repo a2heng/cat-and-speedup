@@ -4,12 +4,14 @@ use cat_speedup_core::Transcript;
 
 pub mod http;
 pub mod model;
+pub mod sherpa;
 pub mod subtitle;
 #[cfg(feature = "whisper")]
 pub mod whisper;
 
 pub use http::HttpAsrEngine;
 pub use model::{ModelSpec, resolve_model};
+pub use sherpa::{SherpaEngine, SherpaModelKind};
 pub use subtitle::split_long_segments;
 
 #[cfg(feature = "whisper")]
@@ -118,6 +120,7 @@ pub trait AsrEngine {
 }
 
 /// Read a WAV file as 16 kHz mono f32 samples.
+#[allow(dead_code)]
 pub(crate) fn load_wav_16k_mono(path: &Path) -> Result<Vec<f32>, AsrError> {
     let mut reader = hound::WavReader::open(path).map_err(|error| AsrError::Audio {
         path: path.display().to_string(),
@@ -160,6 +163,7 @@ pub(crate) fn load_wav_16k_mono(path: &Path) -> Result<Vec<f32>, AsrError> {
     }
 }
 
+#[allow(dead_code)]
 fn resample_linear(samples: &[f32], from: u32, to: u32) -> Vec<f32> {
     if samples.is_empty() || from == to || from == 0 || to == 0 {
         return samples.to_vec();

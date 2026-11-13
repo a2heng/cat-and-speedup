@@ -2,8 +2,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+#[cfg(feature = "whisper")]
+use cat_speedup_asr::resolve_model;
+#[cfg(feature = "whisper")]
+use cat_speedup_asr::whisper::WhisperEngine;
 use cat_speedup_asr::{
-    AsrEngine, AsrOptions, DevicePolicy, HttpAsrEngine, resolve_model, whisper::WhisperEngine,
+    AsrEngine, AsrOptions, DevicePolicy, HttpAsrEngine, SherpaEngine, SherpaModelKind,
+    sherpa::{default_executable, default_model_dir},
 };
 use cat_speedup_core::{
     AsrMap, Ffmpeg, MediaInfo, Plan, PlanOptions, RenderOptions, Transcript, build_plan,
@@ -37,7 +42,7 @@ enum Command {
     /// Extract voice-only audio plus an edited->original time map for ASR.
     PrepareAsr(PrepareAsrArgs),
     /// Transcribe voice-only audio and map subtitles back to the original timeline.
-    Transcribe(TranscribeArgs),
+    Transcribe(Box<TranscribeArgs>),
     /// Map an ASR transcript from compact-audio time back to the original timeline.
     MapTranscript(MapTranscriptArgs),
 }
@@ -69,6 +74,19 @@ impl DetectionArgs {
             margin_ms: (self.margin * 1000.0).round() as u64,
         })
     }
+}
+
+#[derive(Debug, Clone, Args)]
+struct SherpaArgs {
+    /// Path to sherpa-onnx-offline (or CAT_SPEEDUP_SHERPA_EXE).
+    #[arg(long)]
+    sherpa_exe: Option<PathBuf>,
+    /// Directory containing encoder_adaptor.int8.onnx / llm.int8.onnx / tokenizer.
+    #[arg(long)]
+    sherpa_model_dir: Option<PathBuf>,
+    /// funasr-nano or paraformer.
+    #[arg(long, default_value = "funasr-nano")]
+    sherpa_kind: String,
 }
 
 #[derive(Debug, Args)]
@@ -123,8 +141,10 @@ struct TranscribeArgs {
     input: Option<PathBuf>,
     #[command(flatten)]
     detection: DetectionArgs,
-    /// ASR backend: whisper, funasr (HTTP preset), http.
-    #[arg(long, default_value = "whisper")]
+    #[command(flatten)]
+    sherpa: SherpaArgs,
+    /// ASR backend: sherpa (offline FunASR), whisper, funasr (HTTP preset), http.
+    #[arg(long, default_value = "sherpa")]
     engine: String,
     /// OpenAI-compatible transcription URL (for --engine http).
     #[arg(long)]
@@ -186,7 +206,7 @@ fn main() -> Result<()> {
         Command::Analyze(args) => analyze(args),
         Command::Render(args) => render(args),
         Command::PrepareAsr(args) => prepare_asr(args),
-        Command::Transcribe(args) => transcribe(args),
+        Command::Transcribe(args) => transcribe(*args),
         Command::MapTranscript(args) => map_transcript_cmd(args),
     }
 }
@@ -196,17 +216,17 @@ fn doctor() -> Result<()> {
     println!("ffmpeg:  {}", ffmpeg.ffmpeg.display());
     println!("ffprobe: {}", ffmpeg.ffprobe.display());
     println!("version: {}", ffmpeg.version()?);
+    #[cfg(feature = "whisper")]
     println!("whisper: {}", cat_speedup_asr::whisper_cpp_version());
     println!(
         "gpu:     {}",
         cat_speedup_asr::gpu_backend().unwrap_or("none (CPU-only build)")
     );
-
-    let spec = resolve_model(None);
-    match spec.resolve(false) {
-        Ok(path) => println!("model:   {}", path.display()),
-        Err(_) => println!("model:   not downloaded (run transcribe --model base)"),
-    }
+    println!("sherpa:  {}", default_executable().display());
+    println!(
+        "funasr:  {}",
+        default_model_dir(SherpaModelKind::FunAsrNano).display()
+    );
 
     Ok(())
 }
@@ -342,19 +362,37 @@ fn transcribe(args: TranscribeArgs) -> Result<()> {
         (audio, map)
     };
 
-    let model = if args.model.eq_ignore_ascii_case("auto") {
-        if cat_speedup_asr::gpu_backend().is_some() {
-            "small"
+    #[cfg(feature = "whisper")]
+    let spec = {
+        let model = if args.model.eq_ignore_ascii_case("auto") {
+            if cat_speedup_asr::gpu_backend().is_some() {
+                "small"
+            } else {
+                "base"
+            }
         } else {
-            "base"
-        }
-    } else {
-        args.model.as_str()
+            args.model.as_str()
+        };
+        resolve_model(Some(model))
     };
-    let spec = resolve_model(Some(model));
     let default_asr_url = "http://127.0.0.1:8000/v1/audio/transcriptions";
     let mut engine: Box<dyn AsrEngine> = match args.engine.as_str() {
+        "sherpa" | "funasr-offline" => {
+            let kind = SherpaModelKind::parse(&args.sherpa.sherpa_kind)?;
+            match (&args.sherpa.sherpa_exe, &args.sherpa.sherpa_model_dir) {
+                (Some(exe), Some(dir)) => Box::new(SherpaEngine::new(exe, dir, kind)?),
+                (Some(exe), None) => {
+                    Box::new(SherpaEngine::new(exe, default_model_dir(kind), kind)?)
+                }
+                (None, Some(dir)) => Box::new(SherpaEngine::new(default_executable(), dir, kind)?),
+                (None, None) => Box::new(SherpaEngine::from_env(kind)?),
+            }
+        }
+        #[cfg(feature = "whisper")]
         "whisper" => Box::new(WhisperEngine::new(&spec, !args.no_download)?),
+        "whisper" => anyhow::bail!(
+            "this build has no whisper support; use --engine sherpa or rebuild with --features whisper"
+        ),
         "funasr" | "http" => {
             let url = args
                 .asr_url

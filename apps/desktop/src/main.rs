@@ -5,7 +5,9 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
-use cat_speedup_asr::{AsrEngine, AsrOptions as EngineAsrOptions, DevicePolicy, HttpAsrEngine};
+use cat_speedup_asr::{
+    AsrEngine, AsrOptions as EngineAsrOptions, DevicePolicy, SherpaEngine, SherpaModelKind,
+};
 use cat_speedup_core::{
     Ffmpeg, MediaInfo, Plan, RenderOptions, RenderReport, SegmentKind, Transcript, build_plan,
     ffmpeg::AsrOptions as CoreAsrOptions, map_transcript,
@@ -40,8 +42,6 @@ struct AppState {
     status: String,
     error: Option<String>,
     busy: bool,
-    asr_url: String,
-    asr_model: String,
 }
 
 impl AppState {
@@ -52,13 +52,9 @@ impl AppState {
             transcript: None,
             poster: None,
             selected: None,
-            status: "打开一个视频开始".into(),
+            status: "打开一个视频开始（FunASR 本地离线运行）".into(),
             error: None,
             busy: false,
-            asr_url: std::env::var("CAT_SPEEDUP_ASR_URL")
-                .unwrap_or_else(|_| "http://127.0.0.1:8000/v1/audio/transcriptions".into()),
-            asr_model: std::env::var("CAT_SPEEDUP_ASR_MODEL")
-                .unwrap_or_else(|_| "FunAudioLLM/Fun-ASR-Nano-2512".into()),
         }
     }
 
@@ -107,13 +103,11 @@ impl AppState {
         let Some(input) = self.input.clone() else {
             return;
         };
-        let url = self.asr_url.clone();
-        let model = self.asr_model.clone();
 
         self.run_task(
             cx,
-            "转写中：裁语音段 -> FunASR 服务 -> 映射回原时间轴…",
-            move || transcribe_video(&input, &url, &model),
+            "转写中：裁语音段 -> 本地 FunASR -> 映射回原时间轴…",
+            move || transcribe_video(&input),
             |this, (plan, transcript)| {
                 this.status = format!("字幕完成：{} 条", transcript.segments.len());
                 this.plan = Some(plan);
@@ -474,7 +468,7 @@ fn analyze_video(input: &Path) -> Result<(Plan, Arc<Path>)> {
     Ok((plan, poster))
 }
 
-fn transcribe_video(input: &Path, url: &str, model: &str) -> Result<(Plan, Transcript)> {
+fn transcribe_video(input: &Path) -> Result<(Plan, Transcript)> {
     let ffmpeg = Ffmpeg::discover()?;
     let info = ffmpeg.probe(input)?;
     let plan = make_plan(&ffmpeg, input, &info)?;
@@ -491,15 +485,15 @@ fn transcribe_video(input: &Path, url: &str, model: &str) -> Result<(Plan, Trans
         },
     )?;
 
-    let mut engine = HttpAsrEngine::new(url, None, model, 600);
+    let mut engine = SherpaEngine::from_env(SherpaModelKind::FunAsrNano)?;
     let result = engine.transcribe_wav(
         &wav,
         &EngineAsrOptions {
             language: Some("zh".into()),
             translate: false,
-            initial_prompt: Some("以下是普通话的句子，请使用简体中文。".into()),
+            initial_prompt: None,
             threads: 8,
-            device: DevicePolicy::Auto,
+            device: DevicePolicy::Cpu,
         },
     )?;
 
