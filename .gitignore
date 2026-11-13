@@ -1,0 +1,11 @@
+/target
+/out
+/tools
+/models
+*.part
+*.tmp
+.DS_Store
+.idea/
+*.iml
+local.properties
+.gradle/

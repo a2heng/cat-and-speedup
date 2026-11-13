@@ -1,0 +1,20 @@
+[package]
+name = "cat-speedup-asr"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["whisper"]
+whisper = ["dep:whisper-rs"]
+gpu-vulkan = ["whisper", "whisper-rs/vulkan"]
+gpu-cuda = ["whisper", "whisper-rs/cuda"]
+
+[dependencies]
+cat-speedup-core = { path = "../core" }
+hound.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+ureq.workspace = true
+whisper-rs = { workspace = true, optional = true }

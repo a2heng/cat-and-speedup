@@ -1,0 +1,21 @@
+[workspace]
+resolver = "3"
+members = ["crates/core", "crates/asr", "crates/cli", "apps/desktop"]
+default-members = ["crates/core", "crates/asr", "crates/cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.85"
+
+[workspace.dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+hound = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+thiserror = "2"
+ureq = "2"
+whisper-rs = { version = "0.16", default-features = false }

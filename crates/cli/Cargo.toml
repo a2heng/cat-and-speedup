@@ -1,0 +1,23 @@
+[package]
+name = "cat-speedup"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+gpu-vulkan = ["cat-speedup-asr/gpu-vulkan"]
+gpu-cuda = ["cat-speedup-asr/gpu-cuda"]
+
+[[bin]]
+name = "cat-speedup"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+cat-speedup-asr = { path = "../asr" }
+cat-speedup-core = { path = "../core" }
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
